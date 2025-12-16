@@ -1,37 +1,43 @@
 {
-	"name": "campus-connect",
-	"version": "0.1.0",
-	"private": true,
-	"scripts": {
-		"dev": "next dev",
-		"build": "next build",
-		"start": "next start",
-		"lint": "eslint",
-		"prepare": "husky"
-	},
-	"dependencies": {
-		"next": "^16.0.10",
-		"react": "^19.2.3",
-		"react-dom": "^19.2.3"
-	},
-	"devDependencies": {
-		"@commitlint/cli": "^20.2.0",
-		"@commitlint/config-conventional": "^20.2.0",
-		"@tailwindcss/postcss": "^4",
-		"babel-plugin-react-compiler": "1.0.0",
-		"eslint": "^9",
-		"eslint-config-next": "16.0.8",
-		"eslint-config-prettier": "^10.1.8",
-		"husky": "^9.1.7",
-		"lint-staged": "^16.2.7",
-		"prettier": "3.7.4",
-		"tailwindcss": "^4"
-	},
-	"lint-staged": {
-		"*.{ts,tsx,js,jsx,mjs}": [
-			"eslint --fix",
-			"prettier --write"
-		],
-		"*.{json,css,md}": "prettier --write"
-	}
+  "name": "campus-connect",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "appwrite": "^21.5.0",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.23.26",
+    "gsap": "^3.14.2",
+    "lenis": "^1.3.16",
+    "lucide-react": "^0.561.0",
+    "next": "^16.0.10",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.2.0",
+    "@tailwindcss/postcss": "^4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.8",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "3.7.4",
+    "tailwindcss": "^4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": "prettier --write"
+  }
 }
