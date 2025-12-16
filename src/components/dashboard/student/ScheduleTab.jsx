@@ -2,245 +2,202 @@
 
 import { useState } from "react";
 import { format, addDays, startOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, AlertCircle, Clock } from "lucide-react";
-import Card from "@/components/ui/Card";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+// import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+// import Input from "@/components/ui/Input";
 import { motion } from "framer-motion";
 
 export default function ScheduleTab() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedClass, setSelectedClass] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Mock data - will be replaced with API calls
+  // Mock data
   const classes = [
     {
       id: 1,
       name: "Computer Networks",
-      time: "9:00 AM - 11:00 AM",
+      time: "09:00 - 11:00",
       room: "Room 301",
       faculty: "Dr. Smith",
       status: "scheduled",
-      date: new Date(),
+      day: 1, // Monday
+      color:
+        "bg-blue-100 dark:bg-blue-500/20 border-blue-400 dark:border-blue-500/50 text-blue-700 dark:text-blue-300",
     },
     {
       id: 2,
       name: "Data Structures",
-      time: "11:30 AM - 1:30 PM",
+      time: "11:30 - 13:30",
       room: "Room 205",
       faculty: "Prof. Johnson",
       status: "rescheduled",
-      date: new Date(),
-      notification: "Rescheduled to 2:00 PM",
+      day: 1,
+      color:
+        "bg-purple-100 dark:bg-purple-500/20 border-purple-400 dark:border-purple-500/50 text-purple-700 dark:text-purple-300",
     },
     {
       id: 3,
       name: "Database Systems",
-      time: "2:00 PM - 4:00 PM",
+      time: "14:00 - 16:00",
       room: "Lab 102",
       faculty: "Dr. Williams",
-      status: "cancelled",
-      date: new Date(),
-      notification: "Class cancelled",
+      status: "scheduled",
+      day: 2, // Tuesday
+      color:
+        "bg-green-100 dark:bg-green-500/20 border-green-400 dark:border-green-500/50 text-green-700 dark:text-green-300",
+    },
+    {
+      id: 4,
+      name: "Operating Systems",
+      time: "10:00 - 12:00",
+      room: "Room 401",
+      faculty: "Dr. Brown",
+      status: "scheduled",
+      day: 3, // Wednesday
+      color:
+        "bg-orange-100 dark:bg-orange-500/20 border-orange-400 dark:border-orange-500/50 text-orange-700 dark:text-orange-300",
     },
   ];
 
   const weekDays = Array.from({ length: 7 }, (_, i) =>
-    addDays(startOfWeek(currentDate), i),
+    addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i),
   );
 
-  const getClassesForDate = (date) => {
-    return classes.filter(
-      (c) => format(c.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd"),
-    );
-  };
-
-  const handleClassClick = (classItem) => {
-    setSelectedClass(classItem);
-    setIsModalOpen(true);
+  const getClassesForDay = (dayIndex) => {
+    // dayIndex: 0 = Monday, 6 = Sunday (adjusted for weekStartsOn: 1)
+    // In date-fns startOfWeek with weekStartsOn: 1, the array starts with Monday.
+    // My mock data uses 1 for Monday, 2 for Tuesday, etc.
+    return classes.filter((c) => c.day === dayIndex + 1);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Schedule
-        </h1>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setCurrentDate(addDays(currentDate, -7))}
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="text-lg font-medium text-gray-700 dark:text-gray-300">
-            {format(currentDate, "MMMM yyyy")}
-          </span>
-          <button
-            onClick={() => setCurrentDate(addDays(currentDate, 7))}
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Schedule
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage your classes and assignments
+          </p>
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <Card>
-        <div className="grid grid-cols-7 gap-4">
-          {weekDays.map((day, index) => {
-            const dayClasses = getClassesForDate(day);
-            const isToday =
-              format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-            const isSelected =
-              format(day, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+      {/* Calendar Controls */}
+      <div className="flex items-center justify-between bg-gray-100 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10">
+        <button
+          onClick={() => setCurrentDate(addDays(currentDate, -7))}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg text-gray-900 dark:text-white transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="text-lg font-medium text-gray-900 dark:text-white">
+          {format(currentDate, "MMMM yyyy")}
+        </span>
+        <button
+          onClick={() => setCurrentDate(addDays(currentDate, 7))}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg text-gray-900 dark:text-white transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
 
-            return (
-              <motion.div
-                key={index}
-                whileHover={{ scale: 1.02 }}
-                onClick={() => setSelectedDate(day)}
-                className={`p-4 rounded-lg cursor-pointer transition-all ${
-                  isSelected
-                    ? "bg-blue-600 text-white"
-                    : isToday
-                      ? "bg-blue-100 dark:bg-blue-900/30"
-                      : "hover:bg-gray-100 dark:hover:bg-gray-700"
+      {/* Weekly Calendar Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        {weekDays.map((day, index) => {
+          const isToday =
+            format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+          const dayClasses = getClassesForDay(index);
+
+          return (
+            <div key={index} className="space-y-3">
+              <div
+                className={`text-center p-3 rounded-xl border ${
+                  isToday
+                    ? "bg-violet-600 text-white border-violet-500"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/10"
                 }`}
               >
-                <div className="text-sm font-medium mb-2">
+                <p className="text-xs font-medium uppercase">
                   {format(day, "EEE")}
-                </div>
-                <div className="text-2xl font-bold mb-2">
-                  {format(day, "d")}
-                </div>
-                <div className="space-y-1">
-                  {dayClasses.slice(0, 2).map((cls) => (
-                    <div
-                      key={cls.id}
-                      className={`text-xs p-1 rounded ${
-                        isSelected
-                          ? "bg-blue-700"
-                          : "bg-gray-200 dark:bg-gray-600"
-                      }`}
-                    >
-                      {cls.name.substring(0, 15)}...
-                    </div>
-                  ))}
-                  {dayClasses.length > 2 && (
-                    <div className="text-xs opacity-70">
-                      +{dayClasses.length - 2} more
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </Card>
+                </p>
+                <p className="text-xl font-bold">{format(day, "d")}</p>
+              </div>
 
-      {/* Classes List for Selected Date */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Classes for {format(selectedDate, "EEEE, MMMM d")}
-        </h2>
-        <div className="space-y-4">
-          {getClassesForDate(selectedDate).length === 0 ? (
-            <Card>
-              <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                No classes scheduled for this day
-              </p>
-            </Card>
-          ) : (
-            getClassesForDate(selectedDate).map((classItem) => (
-              <motion.div
-                key={classItem.id}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => handleClassClick(classItem)}
-              >
-                <Card hover className="cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                          {classItem.name}
-                        </h3>
-                        {classItem.notification && (
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              classItem.status === "cancelled"
-                                ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                                : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400"
-                            }`}
-                          >
-                            {classItem.notification}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {classItem.time}
-                        </div>
-                        <span>•</span>
-                        <span>{classItem.room}</span>
-                        <span>•</span>
-                        <span>{classItem.faculty}</span>
-                      </div>
+              <div className="space-y-2">
+                {dayClasses.map((cls) => (
+                  <motion.div
+                    key={cls.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-xl border ${cls.color} cursor-pointer hover:opacity-80 transition-opacity`}
+                    onClick={() => setSelectedClass(cls)}
+                  >
+                    <p className="font-bold text-sm truncate">{cls.name}</p>
+                    <div className="flex items-center gap-1 text-xs opacity-80 mt-1">
+                      <Clock className="w-3 h-3" />
+                      {cls.time}
                     </div>
-                    {classItem.notification && (
-                      <AlertCircle
-                        className={`w-5 h-5 ${
-                          classItem.status === "cancelled"
-                            ? "text-red-500"
-                            : "text-yellow-500"
-                        }`}
-                      />
-                    )}
+                    <p className="text-xs opacity-80 mt-1">{cls.room}</p>
+                  </motion.div>
+                ))}
+                {dayClasses.length === 0 && (
+                  <div className="h-24 rounded-xl border border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-gray-600 text-sm">
+                    No classes
                   </div>
-                </Card>
-              </motion.div>
-            ))
-          )}
-        </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Class Details Modal */}
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={selectedClass?.name}
+        isOpen={!!selectedClass}
+        onClose={() => setSelectedClass(null)}
+        title={selectedClass?.name || "Class Details"}
       >
         {selectedClass && (
           <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Time</p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">
-                {selectedClass.time}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Room</p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">
-                {selectedClass.room}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Faculty
-              </p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">
-                {selectedClass.faculty}
-              </p>
-            </div>
-            {selectedClass.notification && (
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <p className="text-yellow-800 dark:text-yellow-200">
-                  {selectedClass.notification}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Time</p>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">
+                  {selectedClass.time}
                 </p>
               </div>
-            )}
+              <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Room</p>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">
+                  {selectedClass.room}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Faculty
+                </p>
+                <p className="text-lg font-medium text-gray-900 dark:text-white">
+                  {selectedClass.faculty}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Status
+                </p>
+                <p className="text-lg font-medium text-gray-900 dark:text-white capitalize">
+                  {selectedClass.status}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="ghost" onClick={() => setSelectedClass(null)}>
+                Close
+              </Button>
+              <Button>Join Class Link</Button>
+            </div>
           </div>
         )}
       </Modal>

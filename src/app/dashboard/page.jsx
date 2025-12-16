@@ -11,6 +11,8 @@ import FeedTab from "@/components/dashboard/student/FeedTab.jsx";
 import CommunityTab from "@/components/dashboard/student/CommunityTab.jsx";
 import WalletTab from "@/components/dashboard/student/WalletTab.jsx";
 import HappeningsTab from "@/components/dashboard/student/HappeningsTab.jsx";
+import ProfileTab from "@/components/dashboard/student/ProfileTab.jsx";
+import SettingsTab from "@/components/dashboard/student/SettingsTab.jsx";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("home");
@@ -41,7 +43,7 @@ export default function DashboardPage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case "home":
-        return <HomeTab />;
+        return <HomeTab setActiveTab={setActiveTab} />;
       case "schedule":
         return <ScheduleTab />;
       case "classes":
@@ -55,16 +57,9 @@ export default function DashboardPage() {
       case "wallet":
         return <WalletTab />;
       case "profile":
-        return (
-          <div className="text-center py-20">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Profile Settings
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Profile settings coming soon...
-            </p>
-          </div>
-        );
+        return <ProfileTab />;
+      case "settings":
+        return <SettingsTab />;
       default:
         return <HomeTab />;
     }

@@ -5,7 +5,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
-export default function HomeTab() {
+export default function HomeTab({ setActiveTab }) {
   const upcomingClasses = [
     {
       id: 1,
@@ -49,29 +49,29 @@ export default function HomeTab() {
       label: "Classes Today",
       value: "4",
       icon: BookOpen,
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-100 dark:bg-blue-900/30",
+      color: "text-blue-400",
+      bgColor: "bg-blue-500/20",
     },
     {
       label: "Pending Assignments",
       value: "2",
       icon: Calendar,
-      color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-100 dark:bg-orange-900/30",
+      color: "text-orange-400",
+      bgColor: "bg-orange-500/20",
     },
     {
       label: "Coins Earned",
       value: "450",
       icon: Award,
-      color: "text-yellow-600 dark:text-yellow-400",
-      bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+      color: "text-yellow-400",
+      bgColor: "bg-yellow-500/20",
     },
     {
       label: "Events Joined",
       value: "12",
       icon: TrendingUp,
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-100 dark:bg-green-900/30",
+      color: "text-green-400",
+      bgColor: "bg-green-500/20",
     },
   ];
 
@@ -97,7 +97,7 @@ export default function HomeTab() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card>
+              <Card hover>
                 <div
                   className={`w-12 h-12 rounded-lg ${stat.bgColor} flex items-center justify-center mb-3`}
                 >
@@ -120,10 +120,14 @@ export default function HomeTab() {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <Calendar className="w-6 h-6 text-violet-500 dark:text-violet-400" />
               Today&apos;s Classes
             </h2>
-            <Button variant="ghost" className="!text-sm !py-2 !px-3">
+            <Button
+              variant="ghost"
+              className="!text-sm !py-2 !px-3"
+              onClick={() => setActiveTab("schedule")}
+            >
               View All
             </Button>
           </div>
@@ -133,8 +137,8 @@ export default function HomeTab() {
                 key={cls.id}
                 className={`p-4 rounded-lg ${
                   cls.status === "rescheduled"
-                    ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                    : "bg-gray-100 dark:bg-gray-700"
+                    ? "bg-yellow-500/10 border border-yellow-500/20"
+                    : "bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/5"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -151,7 +155,7 @@ export default function HomeTab() {
                       {cls.time}
                     </p>
                     {cls.status === "rescheduled" && (
-                      <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                      <span className="text-xs text-yellow-400">
                         Rescheduled
                       </span>
                     )}
@@ -166,7 +170,7 @@ export default function HomeTab() {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Bell className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <Bell className="w-6 h-6 text-purple-500 dark:text-purple-400" />
               Recent Notifications
             </h2>
             <Button variant="ghost" className="!text-sm !py-2 !px-3">
@@ -177,14 +181,14 @@ export default function HomeTab() {
             {recentNotifications.map((notification) => (
               <div
                 key={notification.id}
-                className="p-4 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors cursor-pointer border border-gray-200 dark:border-white/5"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="font-medium text-gray-900 dark:text-white mb-1">
                       {notification.title}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       {notification.time}
                     </p>
                   </div>
@@ -210,19 +214,35 @@ export default function HomeTab() {
           Quick Actions
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Button variant="outline" className="flex-col !h-auto !py-4">
+          <Button
+            variant="outline"
+            className="flex-col !h-auto !py-4"
+            onClick={() => setActiveTab("schedule")}
+          >
             <Calendar className="w-6 h-6 mb-2" />
             View Schedule
           </Button>
-          <Button variant="outline" className="flex-col !h-auto !py-4">
+          <Button
+            variant="outline"
+            className="flex-col !h-auto !py-4"
+            onClick={() => setActiveTab("classes")}
+          >
             <BookOpen className="w-6 h-6 mb-2" />
             My Classes
           </Button>
-          <Button variant="outline" className="flex-col !h-auto !py-4">
+          <Button
+            variant="outline"
+            className="flex-col !h-auto !py-4"
+            onClick={() => setActiveTab("feed")}
+          >
             <TrendingUp className="w-6 h-6 mb-2" />
             Check Feed
           </Button>
-          <Button variant="outline" className="flex-col !h-auto !py-4">
+          <Button
+            variant="outline"
+            className="flex-col !h-auto !py-4"
+            onClick={() => setActiveTab("wallet")}
+          >
             <Award className="w-6 h-6 mb-2" />
             View Wallet
           </Button>

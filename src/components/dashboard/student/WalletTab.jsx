@@ -143,7 +143,7 @@ export default function WalletTab() {
 
       {/* Balance Cards */}
       <div className="grid md:grid-cols-3 gap-6">
-        <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+        <Card className="bg-linear-to-br from-blue-500 to-purple-600 text-white">
           <div className="flex items-center justify-between mb-4">
             <Coins className="w-8 h-8" />
             <TrendingUp className="w-6 h-6 opacity-70" />

@@ -6,6 +6,8 @@ import { account } from "@/lib/appwrite";
 const AuthContext = createContext();
 
 // Dummy credentials for testing (remove in production)
+
+//TODO: Remove this in production
 const DUMMY_USERS = {
   "student@test.com": {
     password: "student123",

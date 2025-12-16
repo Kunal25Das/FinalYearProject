@@ -45,14 +45,14 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
     userRole === "student" ? studentMenuItems : studentMenuItems; // Will customize for other roles
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-white">
       {/* Top Navigation */}
-      <nav className="fixed top-0 w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-40">
+      <nav className="fixed top-0 w-full bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 z-40">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {sidebarOpen ? (
                 <X className="w-6 h-6" />
@@ -60,23 +60,26 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
                 <Menu className="w-6 h-6" />
               )}
             </button>
-            <h1 className="text-2xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-linear-to-r from-violet-600 via-purple-600 to-indigo-600 dark:from-slate-300 dark:via-purple-400 dark:to-violet-500 bg-clip-text text-transparent">
               UniVerse
             </h1>
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg relative">
-              <Bell className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg relative text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+              <Bell className="w-6 h-6" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full" />
             </button>
             <ThemeToggle />
-            <div className="flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <button
+              onClick={() => setActiveTab("profile")}
+              className="flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+            >
+              <User className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                 {user?.name || "User"}
               </span>
-            </div>
+            </button>
           </div>
         </div>
       </nav>
@@ -85,7 +88,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
       <motion.aside
         initial={{ x: 0 }}
         animate={{ x: sidebarOpen ? 0 : -280 }}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-70 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-30 overflow-y-auto"
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-70 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 z-30 overflow-y-auto"
       >
         <div className="p-4 space-y-2">
           {menuItems.map((item) => {
@@ -97,8 +100,8 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    ? "bg-purple-100 dark:bg-purple-600/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -107,17 +110,17 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
             );
           })}
 
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+          <div className="pt-4 border-t border-gray-200 dark:border-white/10 space-y-2">
             <button
-              onClick={() => setActiveTab("profile")}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              onClick={() => setActiveTab("settings")}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all"
             >
               <Settings className="w-5 h-5" />
               <span className="font-medium">Settings</span>
             </button>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Logout</span>
