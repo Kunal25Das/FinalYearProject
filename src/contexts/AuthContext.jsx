@@ -27,6 +27,15 @@ const DUMMY_USERS = {
     },
     role: "club-admin",
   },
+  "organizer@test.com": {
+    password: "organizer123",
+    user: {
+      $id: "dummy-organizer-1",
+      name: "Event Organizer",
+      email: "organizer@test.com",
+    },
+    role: "event-organizer",
+  },
   "faculty@test.com": {
     password: "faculty123",
     user: {

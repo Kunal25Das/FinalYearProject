@@ -16,6 +16,10 @@ import {
   Home,
   Settings,
   Zap,
+  Award,
+  Coins,
+  FileText,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import { useRouter } from "next/navigation";
@@ -41,8 +45,45 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
     { id: "wallet", label: "Wallet", icon: Wallet },
   ];
 
-  const menuItems =
-    userRole === "student" ? studentMenuItems : studentMenuItems; // Will customize for other roles
+  const clubAdminMenuItems = [
+    { id: "club-home", label: "Dashboard", icon: Home },
+    { id: "events", label: "Events", icon: Calendar },
+    { id: "members", label: "Members", icon: Users },
+    { id: "notices", label: "Notices", icon: Bell },
+    { id: "awards", label: "Awards & Coins", icon: Coins },
+  ];
+
+  const eventOrganizerMenuItems = [
+    { id: "organizer-home", label: "Dashboard", icon: Home },
+    { id: "my-events", label: "My Events", icon: Calendar },
+    { id: "registrations", label: "Registrations", icon: Users },
+    { id: "volunteers", label: "Volunteers", icon: Award },
+    { id: "award-coins", label: "Award Coins", icon: Coins },
+  ];
+
+  const facultyMenuItems = [
+    { id: "faculty-home", label: "Dashboard", icon: Home },
+    { id: "my-classes", label: "My Classes", icon: BookOpen },
+    { id: "assignments", label: "Assignments", icon: FileText },
+    { id: "resources", label: "Resources", icon: FileText },
+    { id: "class-notices", label: "Class Notices", icon: Bell },
+    { id: "schedule-manager", label: "Schedule Manager", icon: Clock },
+  ];
+
+  const getMenuItems = () => {
+    switch (userRole) {
+      case "club-admin":
+        return clubAdminMenuItems;
+      case "event-organizer":
+        return eventOrganizerMenuItems;
+      case "faculty":
+        return facultyMenuItems;
+      default:
+        return studentMenuItems;
+    }
+  };
+
+  const menuItems = getMenuItems();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-white">
