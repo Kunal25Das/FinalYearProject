@@ -38,6 +38,23 @@ import ClassNoticesTab from "@/components/dashboard/faculty/ClassNoticesTab.jsx"
 import ScheduleManagerTab from "@/components/dashboard/faculty/ScheduleManagerTab.jsx";
 import FacultyAssignmentsTab from "@/components/dashboard/faculty/AssignmentsTab.jsx";
 
+// Dept Admin (HOD) Components
+import DeptAdminHomeTab from "@/components/dashboard/deptAdmin/DeptAdminHomeTab.jsx";
+import BatchClassesTab from "@/components/dashboard/deptAdmin/BatchClassesTab.jsx";
+import ScheduleUploadTab from "@/components/dashboard/deptAdmin/ScheduleUploadTab.jsx";
+import FacultyAssignTab from "@/components/dashboard/deptAdmin/FacultyAssignTab.jsx";
+import DeptFacultyTab from "@/components/dashboard/deptAdmin/DeptFacultyTab.jsx";
+import DeptNoticesTab from "@/components/dashboard/deptAdmin/DeptNoticesTab.jsx";
+
+// College Admin (Super Admin) Components
+import AdminHomeTab from "@/components/dashboard/collegeAdmin/AdminHomeTab.jsx";
+import ApprovalsTab from "@/components/dashboard/collegeAdmin/ApprovalsTab.jsx";
+import StudentImportTab from "@/components/dashboard/collegeAdmin/StudentImportTab.jsx";
+import BatchManagementTab from "@/components/dashboard/collegeAdmin/BatchManagementTab.jsx";
+import FacultyManagementTab from "@/components/dashboard/collegeAdmin/FacultyManagementTab.jsx";
+import OpportunitiesTab from "@/components/dashboard/collegeAdmin/OpportunitiesTab.jsx";
+import AdminNoticesTab from "@/components/dashboard/collegeAdmin/AdminNoticesTab.jsx";
+
 export default function DashboardPage() {
   const { user, loading, userRole } = useAuth();
   const router = useRouter();
@@ -47,6 +64,8 @@ export default function DashboardPage() {
     if (userRole === "club-admin") return "club-home";
     if (userRole === "event-organizer") return "organizer-home";
     if (userRole === "faculty") return "faculty-home";
+    if (userRole === "dept-admin") return "dept-home";
+    if (userRole === "college-admin") return "admin-home";
     return "home";
   };
 
@@ -171,6 +190,54 @@ export default function DashboardPage() {
     }
   };
 
+  const renderDeptAdminContent = () => {
+    switch (activeTab) {
+      case "dept-home":
+        return <DeptAdminHomeTab setActiveTab={setActiveTab} />;
+      case "batch-classes":
+        return <BatchClassesTab />;
+      case "schedule-upload":
+        return <ScheduleUploadTab />;
+      case "faculty-assign":
+        return <FacultyAssignTab />;
+      case "dept-faculty":
+        return <DeptFacultyTab />;
+      case "dept-notices":
+        return <DeptNoticesTab />;
+      case "profile":
+        return <ProfileTab />;
+      case "settings":
+        return <SettingsTab />;
+      default:
+        return <DeptAdminHomeTab setActiveTab={setActiveTab} />;
+    }
+  };
+
+  const renderCollegeAdminContent = () => {
+    switch (activeTab) {
+      case "admin-home":
+        return <AdminHomeTab setActiveTab={setActiveTab} />;
+      case "approvals":
+        return <ApprovalsTab />;
+      case "student-import":
+        return <StudentImportTab />;
+      case "batch-management":
+        return <BatchManagementTab />;
+      case "faculty-management":
+        return <FacultyManagementTab />;
+      case "opportunities":
+        return <OpportunitiesTab />;
+      case "admin-notices":
+        return <AdminNoticesTab />;
+      case "profile":
+        return <ProfileTab />;
+      case "settings":
+        return <SettingsTab />;
+      default:
+        return <AdminHomeTab setActiveTab={setActiveTab} />;
+    }
+  };
+
   const renderTabContent = () => {
     if (userRole === "club-admin") {
       return renderClubAdminContent();
@@ -180,6 +247,12 @@ export default function DashboardPage() {
     }
     if (userRole === "faculty") {
       return renderFacultyContent();
+    }
+    if (userRole === "dept-admin") {
+      return renderDeptAdminContent();
+    }
+    if (userRole === "college-admin") {
+      return renderCollegeAdminContent();
     }
     return renderStudentContent();
   };

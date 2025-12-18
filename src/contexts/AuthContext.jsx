@@ -45,6 +45,15 @@ const DUMMY_USERS = {
     },
     role: "faculty",
   },
+  "hod@test.com": {
+    password: "hod123",
+    user: {
+      $id: "dummy-hod-1",
+      name: "Dr. Department Head",
+      email: "hod@test.com",
+    },
+    role: "dept-admin",
+  },
   "admin@test.com": {
     password: "admin123",
     user: {

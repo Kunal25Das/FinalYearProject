@@ -70,6 +70,25 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
     { id: "schedule-manager", label: "Schedule Manager", icon: Clock },
   ];
 
+  const deptAdminMenuItems = [
+    { id: "dept-home", label: "Dashboard", icon: Home },
+    { id: "batch-classes", label: "Batch Classes", icon: BookOpen },
+    { id: "schedule-upload", label: "Schedule Upload", icon: Calendar },
+    { id: "faculty-assign", label: "Faculty Assignment", icon: Users },
+    { id: "dept-faculty", label: "Dept. Faculty", icon: Users },
+    { id: "dept-notices", label: "Notices", icon: Bell },
+  ];
+
+  const collegeAdminMenuItems = [
+    { id: "admin-home", label: "Dashboard", icon: Home },
+    { id: "approvals", label: "Approvals", icon: FileText },
+    { id: "student-import", label: "Student Import", icon: Users },
+    { id: "batch-management", label: "Batch Management", icon: BookOpen },
+    { id: "faculty-management", label: "Faculty", icon: Users },
+    { id: "opportunities", label: "Opportunities", icon: Award },
+    { id: "admin-notices", label: "Notices", icon: Bell },
+  ];
+
   const getMenuItems = () => {
     switch (userRole) {
       case "club-admin":
@@ -78,6 +97,10 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
         return eventOrganizerMenuItems;
       case "faculty":
         return facultyMenuItems;
+      case "dept-admin":
+        return deptAdminMenuItems;
+      case "college-admin":
+        return collegeAdminMenuItems;
       default:
         return studentMenuItems;
     }
