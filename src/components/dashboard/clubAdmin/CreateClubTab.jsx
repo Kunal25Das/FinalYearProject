@@ -6,6 +6,8 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { motion } from "framer-motion";
+import { clubService } from "@/lib/services/clubService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CreateClubTab({ onClubCreated }) {
   const [step, setStep] = useState(1);
@@ -13,10 +15,12 @@ export default function CreateClubTab({ onClubCreated }) {
   const [clubData, setClubData] = useState({
     name: "",
     description: "",
-    category: "Technology",
-    icon: "🖥️",
-    color: "from-blue-600 to-cyan-600",
+    category: "",
+    icon: "",
+    color: "",
   });
+
+  const { user } = useAuth();
 
   const categories = [
     "Technology",
@@ -54,16 +58,26 @@ export default function CreateClubTab({ onClubCreated }) {
     { name: "Yellow-Orange", value: "from-yellow-500 to-orange-500" },
   ];
 
-  const handleCreateClub = () => {
+  const handleCreateClub = async () => {
     setIsCreating(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const newClub = await clubService.create({
+        name: clubData.name,
+        description: clubData.description,
+        category: clubData.category,
+        icon: clubData.icon,
+        color: clubData.color,
+        adminId: user.$id,
+        adminName: user.name,
+      });
+      setStep(4);
+      onClubCreated(newClub);
+    } catch (err) {
+      console.error("Club creation failed:", err.message);
+      alert(err.message);
+    } finally {
       setIsCreating(false);
-      setStep(4); // Success step
-      if (onClubCreated) {
-        onClubCreated(clubData);
-      }
-    }, 1500);
+    }
   };
 
   const renderStep = () => {

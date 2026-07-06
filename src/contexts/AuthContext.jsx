@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { account } from "@/lib/appwrite";
+import { ID } from "appwrite";
+import { userService } from "@/lib/services/userService";
 
 const AuthContext = createContext();
 
 // Dummy credentials for testing (remove in production)
-
 //TODO: Remove this in production
 const DUMMY_USERS = {
   "student@test.com": {
@@ -67,8 +68,9 @@ const DUMMY_USERS = {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState(null); // student, club-admin, event-organizer, faculty, faculty-admin, college-admin
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     checkUser();
@@ -76,7 +78,6 @@ export function AuthProvider({ children }) {
 
   const checkUser = async () => {
     try {
-      // Check for dummy user session first
       const dummySession = localStorage.getItem("dummyUserSession");
       if (dummySession) {
         const { user: dummyUser, role } = JSON.parse(dummySession);
@@ -88,13 +89,19 @@ export function AuthProvider({ children }) {
 
       const currentUser = await account.get();
       setUser(currentUser);
-      // In production, fetch role from database
-      // For now, using localStorage as placeholder
-      const role = localStorage.getItem("userRole") || "student";
-      setUserRole(role);
+
+      const profile = await userService.getProfile(currentUser.$id);
+      if (profile) {
+        setUserProfile(profile);
+        setUserRole(profile.role);
+      } else {
+        setUserRole("student");
+      }
     } catch (_error) {
       setUser(null);
+      setUserProfile(null);
       setUserRole(null);
+      console.error("Error checking user:", _error);
     } finally {
       setLoading(false);
     }
@@ -102,7 +109,6 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      // Check for dummy credentials first
       const dummyUser = DUMMY_USERS[email.toLowerCase()];
       if (dummyUser && dummyUser.password === password) {
         localStorage.setItem(
@@ -117,7 +123,6 @@ export function AuthProvider({ children }) {
         return { success: true };
       }
 
-      // Fall back to Appwrite authentication
       await account.createEmailPasswordSession(email, password);
       await checkUser();
       return { success: true };
@@ -126,10 +131,34 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password, name) => {
+  const signup = async (
+    email,
+    password,
+    name,
+    role = "student",
+    extraData = {},
+  ) => {
     try {
-      await account.create("unique()", email, password, name);
-      await login(email, password);
+      const newAccount = await account.create(
+        ID.unique(),
+        email,
+        password,
+        name,
+      );
+
+      await account.createEmailPasswordSession(email, password);
+
+      const profile = await userService.createProfile(newAccount.$id, {
+        name,
+        email,
+        role,
+        ...extraData,
+      });
+
+      setUser(newAccount);
+      setUserProfile(profile);
+      setUserRole(role);
+
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -138,17 +167,16 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      // Clear dummy session if exists
       localStorage.removeItem("dummyUserSession");
 
-      // Try to delete Appwrite session (may fail if using dummy auth)
       try {
         await account.deleteSession("current");
-      } catch (_e) {
-        // Ignore if no Appwrite session
+      } catch (_error) {
+        console.error("Error deleting Appwrite session:", _error);
       }
 
       setUser(null);
+      setUserProfile(null);
       setUserRole(null);
       localStorage.removeItem("userRole");
     } catch (error) {
@@ -172,6 +200,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
+        userProfile,
         userRole,
         loading,
         login,
@@ -179,6 +208,7 @@ export function AuthProvider({ children }) {
         logout,
         loginWithGoogle,
         setUserRole,
+        refreshProfile: checkUser,
       }}
     >
       {children}

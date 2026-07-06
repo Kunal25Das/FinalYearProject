@@ -51,19 +51,21 @@ export default function SignupPage() {
     }
 
     setLoading(true);
+
     const result = await signup(
       formData.email,
       formData.password,
       formData.name,
+      formData.role,
     );
 
     if (result.success) {
-      setUserRole(formData.role);
-      localStorage.setItem("userRole", formData.role);
       router.push("/dashboard");
     } else {
       setError(result.error);
+      console.error("Signup error from auth/signup/page.jsx:", result.error);
     }
+
     setLoading(false);
   };
 

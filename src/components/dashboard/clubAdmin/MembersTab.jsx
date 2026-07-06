@@ -1,171 +1,183 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Users, Search, Shield, Crown, UserX, Coins } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
+import { clubRequestService } from "@/lib/services/clubRequestService";
+import { clubService } from "@/lib/services/clubService";
+import { userService } from "@/lib/services/userService";
+import { volunteerService } from "@/lib/services/volunteerService";
 
-export default function MembersTab() {
+export default function MembersTab({ clubData }) {
+  const [requests, setRequests] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAwardModalOpen, setIsAwardModalOpen] = useState(false);
   const [coinsToAward, setCoinsToAward] = useState(10);
 
-  const [members, setMembers] = useState([
+  const roles = [
     {
       id: 1,
-      name: "Alice Johnson",
-      email: "alice@example.com",
-      role: "Event Organizer",
-      joinedAt: "2024-09-15",
-      coinsEarned: 150,
-      avatar: "👩‍💻",
+      label: "Volunteer",
+      description: "Helps organize and run club events",
+      icon: Users,
     },
     {
       id: 2,
-      name: "Bob Smith",
-      email: "bob@example.com",
-      role: "Member",
-      joinedAt: "2024-10-01",
-      coinsEarned: 50,
-      avatar: "👨‍🎓",
-    },
-    {
-      id: 3,
-      name: "Charlie Brown",
-      email: "charlie@example.com",
-      role: "Volunteer",
-      joinedAt: "2024-11-10",
-      coinsEarned: 75,
-      avatar: "🧑‍💼",
-    },
-    {
-      id: 4,
-      name: "Diana Prince",
-      email: "diana@example.com",
-      role: "Event Organizer",
-      joinedAt: "2024-08-20",
-      coinsEarned: 200,
-      avatar: "👩‍🔬",
-    },
-    {
-      id: 5,
-      name: "Eve Wilson",
-      email: "eve@example.com",
-      role: "Member",
-      joinedAt: "2025-01-05",
-      coinsEarned: 25,
-      avatar: "👩‍🎨",
-    },
-    {
-      id: 6,
-      name: "Frank Miller",
-      email: "frank@example.com",
-      role: "Volunteer",
-      joinedAt: "2024-12-01",
-      coinsEarned: 100,
-      avatar: "👨‍🔧",
-    },
-  ]);
-
-  const [pendingRequests, setPendingRequests] = useState([
-    {
-      id: 7,
-      name: "Grace Lee",
-      email: "grace@example.com",
-      requestedAt: "2025-12-14",
-      avatar: "👩‍🏫",
-    },
-    {
-      id: 8,
-      name: "Henry Ford",
-      email: "henry@example.com",
-      requestedAt: "2025-12-15",
-      avatar: "👨‍💼",
-    },
-  ]);
-
-  const roles = [
-    {
-      id: "event-organizer",
       label: "Event Organizer",
-      description: "Can create and manage events",
+      description: "Plans and manages club events end-to-end",
       icon: Crown,
-    },
-    {
-      id: "volunteer",
-      label: "Volunteer",
-      description: "Can assist with events",
-      icon: Shield,
-    },
-    {
-      id: "member",
-      label: "Member",
-      description: "Regular club member",
-      icon: Users,
     },
   ];
 
-  const filteredMembers = members.filter(
-    (member) =>
-      member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  useEffect(() => {
+    const load = async () => {
+      if (!clubData?.$id) return;
+      try {
+        const reqs = await clubRequestService.getClubRequests(clubData.$id);
+        setRequests(reqs);
 
-  const handleAcceptRequest = (requestId) => {
-    const request = pendingRequests.find((r) => r.id === requestId);
-    if (request) {
-      setMembers([
-        ...members,
-        {
-          ...request,
-          role: "Member",
-          joinedAt: new Date().toISOString().split("T")[0],
-          coinsEarned: 0,
-        },
-      ]);
-      setPendingRequests(pendingRequests.filter((r) => r.id !== requestId));
+        const memberProfiles = await Promise.all(
+          (clubData.memberIds || []).map((userId) =>
+            userService.getProfile(userId),
+          ),
+        );
+
+        const filtered = memberProfiles.filter(Boolean);
+        setMembers(filtered);
+      } catch (err) {
+        console.error("Failed to load members:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [clubData]);
+
+  const handleAcceptRequest = async (request) => {
+    setActionId(request.$id);
+    try {
+      await clubRequestService.approve(request.$id);
+
+      await clubService.join(
+        clubData.$id,
+        request.studentId,
+        clubData.memberIds,
+      );
+
+      const studentProfile = await userService.getProfile(request.studentId);
+      if (studentProfile) {
+        await userService.updateProfile(studentProfile.$id, {
+          joinedClubs: [...studentProfile.joinedClubs, clubData.$id],
+        });
+      }
+
+      setRequests((prev) => prev.filter((r) => r.$id !== request.$id));
+      setMembers((prev) => [...prev, request.studentId]);
+    } catch (err) {
+      console.error("Approve joining request failed:", err.message);
+      alert(err.message);
+    } finally {
+      setActionId(null);
     }
   };
 
-  const handleRejectRequest = (requestId) => {
-    setPendingRequests(pendingRequests.filter((r) => r.id !== requestId));
+  const handleRejectRequest = async (requestDocId) => {
+    setActionId(requestDocId);
+    try {
+      await clubRequestService.reject(requestDocId);
+      setRequests((prev) => prev.filter((r) => r.$id !== requestDocId));
+    } catch (err) {
+      console.error("Rejecting request failed:", err.message);
+    } finally {
+      setActionId(null);
+    }
   };
 
-  const handleRemoveMember = (memberId) => {
-    setMembers(members.filter((m) => m.id !== memberId));
+  const handleRemoveMember = async (userId) => {
+    if (!confirm("Remove this member from the club?")) return;
+    try {
+      const updatedMemberIds = (clubData.memberIds || []).filter(
+        (id) => id !== userId,
+      );
+      await clubService.update(clubData.$id, {
+        memberIds: updatedMemberIds,
+        memberCount: updatedMemberIds.length,
+      });
+
+      const studentProfile = await userService.getProfile(userId);
+      if (studentProfile) {
+        await userService.updateProfile(studentProfile.$id, {
+          joinedClubs: (studentProfile.joinedClubs || []).filter(
+            (id) => id !== clubData.$id,
+          ),
+        });
+      }
+
+      const volunteerDoc = await volunteerService.getByUserId(userId);
+      if (volunteerDoc) {
+        await volunteerService.delete(volunteerDoc.$id);
+      }
+
+      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+    } catch (err) {
+      console.error("Remove member failed:", err.message);
+      alert(err.message);
+    }
   };
 
-  const handleAssignRole = (role) => {
-    if (selectedMember) {
-      setMembers(
-        members.map((m) =>
-          m.id === selectedMember.id ? { ...m, role: role.label } : m,
+  const handleAssignRole = async (role) => {
+    if (!selectedMember) return;
+    try {
+      await userService.updateProfile(selectedMember.$id, {
+        role: role.label.toLowerCase().replace(" ", "-"),
+      });
+
+      const existing = await volunteerService.getByUserId(
+        selectedMember.userId,
+      );
+      if (!existing) {
+        await volunteerService.create({
+          userId: selectedMember.userId,
+          name: selectedMember.name,
+          skills: [],
+          clubId: clubData.$id,
+        });
+      }
+
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.$id === selectedMember.$id ? { ...m, role: role.label } : m,
         ),
       );
+
       setIsRoleModalOpen(false);
       setSelectedMember(null);
+    } catch (err) {
+      console.error("Role assignment failed:", err.message);
+      alert(err.message);
     }
   };
 
-  const handleAwardCoins = () => {
-    if (selectedMember && coinsToAward > 0) {
-      setMembers(
-        members.map((m) =>
-          m.id === selectedMember.id
-            ? { ...m, coinsEarned: m.coinsEarned + coinsToAward }
-            : m,
-        ),
-      );
-      setIsAwardModalOpen(false);
-      setSelectedMember(null);
-      setCoinsToAward(10);
-    }
-  };
+  const handleAwardCoins = () => {};
+
+  const filteredMembers = members.filter(
+    (member) =>
+      member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+  const volunteerCount = members.filter((m) => m.role === "volunteer").length;
+  const organizerCount = members.filter(
+    (m) => m.role === "event-organizer",
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -192,18 +204,18 @@ export default function MembersTab() {
       </div>
 
       {/* Pending Requests */}
-      {pendingRequests.length > 0 && (
+      {requests.length > 0 && (
         <Card>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <span className="px-2 py-1 bg-orange-500/20 text-orange-500 rounded-full text-sm">
-              {pendingRequests.length}
+              {requests.length}
             </span>
-            Pending Join Requests
+            Pending Requests
           </h2>
           <div className="space-y-3">
-            {pendingRequests.map((request) => (
+            {requests.map((request) => (
               <motion.div
-                key={request.id}
+                key={request.$id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center justify-between p-4 bg-gray-100 dark:bg-white/5 rounded-lg"
@@ -214,21 +226,22 @@ export default function MembersTab() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      {request.name}
+                      {request.studentName}
                     </p>
                     <p className="text-sm text-gray-500">{request.email}</p>
                     <p className="text-xs text-gray-400">
-                      Requested on {request.requestedAt}
+                      {request.message} •{" "}
+                      {new Date(request.requestedAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleAcceptRequest(request.id)}>
+                  <Button onClick={() => handleAcceptRequest(request)}>
                     Accept
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => handleRejectRequest(request.id)}
+                    onClick={() => handleRejectRequest(request.$id)}
                   >
                     Reject
                   </Button>
@@ -253,23 +266,18 @@ export default function MembersTab() {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Event Organizers
           </p>
-          <p className="text-3xl font-bold text-purple-500">
-            {members.filter((m) => m.role === "Event Organizer").length}
-          </p>
+          <p className="text-3xl font-bold text-purple-500">{organizerCount}</p>
         </Card>
         <Card>
           <p className="text-sm text-gray-600 dark:text-gray-400">Volunteers</p>
-          <p className="text-3xl font-bold text-blue-500">
-            {members.filter((m) => m.role === "Volunteer").length}
-          </p>
+          <p className="text-3xl font-bold text-blue-500">{volunteerCount}</p>
         </Card>
         <Card>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Total Coins Awarded
           </p>
-          <p className="text-3xl font-bold text-yellow-500">
-            {members.reduce((sum, m) => sum + m.coinsEarned, 0)}
-          </p>
+          <p className="text-3xl font-bold text-yellow-500">0</p>
+          {/* To be made dynamic later */}
         </Card>
       </div>
 
@@ -299,7 +307,7 @@ export default function MembersTab() {
             <tbody>
               {filteredMembers.map((member, index) => (
                 <motion.tr
-                  key={member.id}
+                  key={member.userId}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.05 }}
@@ -312,7 +320,7 @@ export default function MembersTab() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
-                          {member.name}
+                          {member.name?.toUpperCase()}
                         </p>
                         <p className="text-xs text-gray-500">{member.email}</p>
                       </div>
@@ -332,7 +340,7 @@ export default function MembersTab() {
                     </span>
                   </td>
                   <td className="py-4 px-4 text-gray-600 dark:text-gray-400">
-                    {member.joinedAt}
+                    {new Date(member.$createdAt).toLocaleDateString()}
                   </td>
                   <td className="py-4 px-4">
                     <span className="flex items-center gap-1 text-yellow-500 font-medium">
@@ -367,7 +375,7 @@ export default function MembersTab() {
                       <Button
                         variant="ghost"
                         className="text-sm! py-1! px-2! text-red-500!"
-                        onClick={() => handleRemoveMember(member.id)}
+                        onClick={() => handleRemoveMember(member.userId)}
                       >
                         <UserX className="w-4 h-4" />
                       </Button>

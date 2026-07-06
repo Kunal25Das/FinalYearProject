@@ -1,54 +1,46 @@
 "use client";
 
-import {
-  Users,
-  Calendar,
-  Award,
-  TrendingUp,
-  Bell,
-  Plus,
-  Coins,
-} from "lucide-react";
+import { Users, Calendar, Award, TrendingUp, Bell, Coins } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
 export default function ClubHomeTab({ setActiveTab, clubData }) {
   const club = clubData || {
-    name: "Computer Science Club",
-    icon: "🖥️",
-    members: 234,
-    pendingRequests: 5,
-    totalCoinsAwarded: 1250,
-    upcomingEvents: 3,
-    activeVolunteers: 12,
+    name: "Club",
+    icon: "",
+    members: 0,
+    pendingRequests: 0,
+    totalCoinsAwarded: 0,
+    upcomingEvents: 0,
+    activeVolunteers: 0,
   };
 
   const quickStats = [
     {
       label: "Total Members",
-      value: club.members,
+      value: club.memberCount ?? 0,
       icon: Users,
       color: "text-blue-400",
       bgColor: "bg-blue-500/20",
     },
     {
       label: "Upcoming Events",
-      value: club.upcomingEvents,
+      value: club.eventCount ?? 0,
       icon: Calendar,
       color: "text-purple-400",
       bgColor: "bg-purple-500/20",
     },
     {
       label: "Coins Awarded",
-      value: club.totalCoinsAwarded,
+      value: club.totalCoinsAwarded ?? 0,
       icon: Coins,
       color: "text-yellow-400",
       bgColor: "bg-yellow-500/20",
     },
     {
       label: "Active Volunteers",
-      value: club.activeVolunteers,
+      value: club.activeVolunteers ?? 0,
       icon: Award,
       color: "text-green-400",
       bgColor: "bg-green-500/20",
@@ -96,8 +88,7 @@ export default function ClubHomeTab({ setActiveTab, clubData }) {
         </div>
         <div className="flex gap-3">
           <Button onClick={() => setActiveTab("events")}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Event
+            Create an Event
           </Button>
         </div>
       </div>

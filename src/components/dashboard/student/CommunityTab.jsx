@@ -1,38 +1,102 @@
 "use client";
 
-import { useState } from "react";
-import { Users, Calendar, Award, Search, Filter } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Users,
+  Calendar,
+  Award,
+  Search,
+  Filter,
+  Loader2,
+  Clock,
+  CheckCircle,
+} from "lucide-react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { motion } from "framer-motion";
-import { clubs } from "@/lib/mockData";
+import { clubService } from "@/lib/services/clubService";
+import { clubRequestService } from "@/lib/services/clubRequestService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CommunityTab() {
+  const { user, userProfile } = useAuth();
+  const [clubs, setClubs] = useState([]);
   const [selectedClub, setSelectedClub] = useState(null);
-
-  // Lazy initialization to avoid setState in useEffect
-  const [joinedClubs, setJoinedClubs] = useState(() => {
-    const savedClubs = localStorage.getItem("joinedClubs");
-    if (savedClubs) {
-      return JSON.parse(savedClubs);
-    }
-    // Default joined clubs if none saved
-    return [1, 3];
-  });
-
+  const [joinedClubs, setJoinedClubs] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadingClubs, setLoadingClubs] = useState(true);
+  const [requestStatuses, setRequestStatuses] = useState({});
+  const [actionId, setActionId] = useState(null);
 
-  const handleJoinToggle = (clubId) => {
-    let newJoinedClubs;
-    if (joinedClubs.includes(clubId)) {
-      newJoinedClubs = joinedClubs.filter((id) => id !== clubId);
-    } else {
-      newJoinedClubs = [...joinedClubs, clubId];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const allClubs = await clubService.listAll();
+        setClubs(allClubs);
+
+        if (userProfile?.joinedClubs) {
+          setJoinedClubs(userProfile.joinedClubs);
+        }
+
+        if (user?.$id && allClubs.length > 0) {
+          const statusMap = {};
+          await Promise.all(
+            allClubs.map(async (club) => {
+              const req = await clubRequestService.getStudentRequest(
+                club.$id,
+                user.$id,
+              );
+              if (req) statusMap[club.$id] = req.status;
+            }),
+          );
+          setRequestStatuses(statusMap);
+        }
+      } catch (err) {
+        console.error("Failed to load clubs:", err);
+      } finally {
+        setLoadingClubs(false);
+      }
+    };
+    load();
+  }, [userProfile, user]);
+
+  const handleJoinRequest = async (club) => {
+    if (!user || !userProfile) return;
+    setActionId(club.$id);
+    try {
+      await clubRequestService.sendRequest({
+        clubId: club.$id,
+        clubName: club.name,
+        studentId: user.$id,
+        studentName: user.name,
+        studentEmail: user.email,
+      });
+      setRequestStatuses((prev) => ({ ...prev, [club.$id]: "pending" }));
+    } catch (err) {
+      console.error("Join request failed:", err.message);
+      alert(err.message);
+    } finally {
+      setActionId(null);
     }
-    setJoinedClubs(newJoinedClubs);
-    localStorage.setItem("joinedClubs", JSON.stringify(newJoinedClubs));
+  };
+
+  const getButtonLabel = (clubId) => {
+    if (joinedClubs.includes(clubId)) return "Joined";
+    const status = requestStatuses[clubId];
+    if (status === "pending") return "Requested";
+    if (status === "approved") return "Joined";
+    return "Join Club";
+  };
+
+  const isButtonDisabled = (clubId) => {
+    return (
+      actionId === clubId ||
+      joinedClubs.includes(clubId) ||
+      requestStatuses[clubId] === "pending" ||
+      requestStatuses[clubId] === "approved"
+    );
   };
 
   const filteredClubs = clubs.filter(
@@ -40,6 +104,14 @@ export default function CommunityTab() {
       club.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       club.category.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  if (loadingClubs) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -62,23 +134,32 @@ export default function CommunityTab() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="!px-3">
+          <Button variant="outline" className="px-3">
             <Filter className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
+      {/* Empty state */}
+      {filteredClubs.length === 0 && (
+        <div className="text-center py-20 text-gray-500">
+          No clubs found. Check back after an admin approves some!
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredClubs.map((club, index) => (
           <motion.div
-            key={club.id}
+            key={club.$id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
             <Card
               className="h-full flex flex-col hover:border-white/20 transition-colors group cursor-pointer"
-              onClick={() => setSelectedClub(club)}
+              onClick={() => {
+                setSelectedClub(club);
+              }}
             >
               <div
                 className={`h-24 rounded-t-xl bg-linear-to-r ${club.color} -mx-6 -mt-6 mb-4 relative overflow-visible`}
@@ -106,27 +187,42 @@ export default function CommunityTab() {
                 <div className="flex items-center gap-4 text-sm text-gray-500 mb-6">
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
-                    {club.members}
+                    {club.memberCount} Members
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    {club.events} Events
+                    {club.eventCount} Events
                   </div>
                 </div>
               </div>
 
               <div className="mt-auto pt-4 border-t border-gray-200 dark:border-white/5 flex gap-2">
                 <Button
-                  className="flex-1"
+                  className="w-full"
                   variant={
-                    joinedClubs.includes(club.id) ? "outline" : "primary"
+                    joinedClubs.includes(club.$id) ||
+                    requestStatuses[club.$id] === "approved"
+                      ? "outline"
+                      : requestStatuses[club.$id] === "pending"
+                        ? "ghost"
+                        : "primary"
                   }
+                  disabled={isButtonDisabled(club.$id)}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleJoinToggle(club.id);
+                    handleJoinRequest(club);
                   }}
                 >
-                  {joinedClubs.includes(club.id) ? "Joined" : "Join Club"}
+                  {actionId === club.$id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : requestStatuses[club.$id] === "pending" ? (
+                    <>
+                      <Clock className="w-4 h-4 mr-2" />
+                      Requested to join
+                    </>
+                  ) : (
+                    getButtonLabel(club.$id)
+                  )}
                 </Button>
               </div>
             </Card>
@@ -187,7 +283,7 @@ export default function CommunityTab() {
                       Members
                     </span>
                     <span className="text-gray-900 dark:text-white font-bold">
-                      {selectedClub.members}
+                      {selectedClub.memberCount}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -195,38 +291,42 @@ export default function CommunityTab() {
                       Events
                     </span>
                     <span className="text-gray-900 dark:text-white font-bold">
-                      {selectedClub.events}
+                      {selectedClub.eventCount}
                     </span>
                   </div>
-                  <Button
-                    className="w-full"
-                    variant={
-                      joinedClubs.includes(selectedClub.id)
-                        ? "outline"
-                        : "primary"
-                    }
-                    onClick={() => handleJoinToggle(selectedClub.id)}
-                  >
-                    {joinedClubs.includes(selectedClub.id)
-                      ? "Leave Club"
-                      : "Join Now"}
-                  </Button>
                 </div>
 
-                {selectedClub.upcomingEvents.length > 0 && (
+                {requestStatuses[selectedClub.$id] === "pending" ? (
+                  <div className="w-full py-2 px-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-sm text-center flex items-center justify-center gap-2">
+                    <Clock className="w-4 h-4" /> Request Pending
+                  </div>
+                ) : joinedClubs.includes(selectedClub.$id) ? (
+                  <div className="w-full py-2 px-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-500 text-sm text-center flex items-center justify-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> You are a member
+                  </div>
+                ) : (
+                  <Button
+                    className="w-full"
+                    onClick={() => handleJoinRequest(selectedClub)}
+                  >
+                    Join Now
+                  </Button>
+                )}
+
+                {selectedClub.eventCount > 0 && (
                   <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                     <h4 className="font-bold text-gray-900 dark:text-white mb-3">
                       Upcoming Events
                     </h4>
                     <div className="space-y-3">
-                      {selectedClub.upcomingEvents.map((event) => (
-                        <div key={event.id} className="text-sm">
+                      {/* {selectedClub.upcomingEvents.map((event) => (
+                        <div key={event.$id} className="text-sm">
                           <p className="text-gray-900 dark:text-white font-medium">
                             {event.name}
                           </p>
                           <p className="text-gray-500">{event.date}</p>
                         </div>
-                      ))}
+                      ))} */}
                     </div>
                   </div>
                 )}

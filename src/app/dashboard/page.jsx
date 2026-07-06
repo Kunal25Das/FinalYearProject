@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext.jsx";
+import { clubService } from "@/lib/services/clubService";
 import DashboardLayout from "@/components/dashboard/DashboardLayout.jsx";
 
 // Student Components
@@ -26,6 +27,7 @@ import CreateClubTab from "@/components/dashboard/clubAdmin/CreateClubTab.jsx";
 import ClubSettingsTab from "@/components/dashboard/clubAdmin/ClubSettingsTab.jsx";
 
 // Event Organizer Components
+import OrganizerEventsTab from "@/components/dashboard/eventOrganizer/OrganizerEventsTab.jsx";
 import OrganizerHomeTab from "@/components/dashboard/eventOrganizer/OrganizerHomeTab.jsx";
 import VolunteersTab from "@/components/dashboard/eventOrganizer/VolunteersTab.jsx";
 import RegistrationsTab from "@/components/dashboard/eventOrganizer/RegistrationsTab.jsx";
@@ -70,13 +72,36 @@ export default function DashboardPage() {
   };
 
   const [activeTab, setActiveTab] = useState(getDefaultTab());
-  const [hasClub, setHasClub] = useState(true); // Simulating that admin has a club
+  const [hasClub, setHasClub] = useState(false);
+  const [clubData, setClubData] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth/login");
     }
-  }, [user, loading, router]);
+
+    if (!loading && user && userRole === "club-admin") {
+      clubService.getByAdminId(user.$id).then((club) => {
+        if (club) {
+          setClubData(club);
+          setHasClub(true);
+        }
+      });
+    }
+  }, [user, userRole, loading, router]);
+
+  useEffect(() => {
+    const getClubData = async () => {
+      try {
+        const club = await clubService.clubContext();
+        setClubData(club);
+      } catch (error) {
+        console.error("Error fetching club data:", error);
+      }
+    };
+
+    getClubData();
+  }, []);
 
   if (loading) {
     return (
@@ -119,30 +144,43 @@ export default function DashboardPage() {
   };
 
   const renderClubAdminContent = () => {
-    // If admin doesn't have a club yet, show create club page
     if (!hasClub && activeTab !== "create-club") {
-      return <CreateClubTab onClubCreated={() => setHasClub(true)} />;
+      return (
+        <CreateClubTab
+          onClubCreated={(newClub) => {
+            setClubData(newClub);
+            setHasClub(true);
+          }}
+        />
+      );
     }
 
     switch (activeTab) {
       case "club-home":
-        return <ClubHomeTab setActiveTab={setActiveTab} />;
+        return <ClubHomeTab setActiveTab={setActiveTab} clubData={clubData} />;
       case "events":
         return <EventsTab />;
       case "members":
-        return <MembersTab />;
+        return <MembersTab clubData={clubData} />;
       case "notices":
         return <NoticesTab />;
       case "awards":
         return <AwardsTab />;
       case "create-club":
-        return <CreateClubTab onClubCreated={() => setHasClub(true)} />;
+        return (
+          <CreateClubTab
+            onClubCreated={(newClub) => {
+              setHasClub(true);
+              setClubData(newClub);
+            }}
+          />
+        );
       case "profile":
         return <ProfileTab />;
       case "settings":
         return <ClubSettingsTab />;
       default:
-        return <ClubHomeTab setActiveTab={setActiveTab} />;
+        return <ClubHomeTab setActiveTab={setActiveTab} clubData={clubData} />;
     }
   };
 
@@ -151,7 +189,7 @@ export default function DashboardPage() {
       case "organizer-home":
         return <OrganizerHomeTab setActiveTab={setActiveTab} />;
       case "my-events":
-        return <EventsTab />;
+        return <OrganizerEventsTab />;
       case "registrations":
         return <RegistrationsTab />;
       case "volunteers":
