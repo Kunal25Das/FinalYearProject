@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   Plus,
@@ -16,44 +16,21 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
+import { clubService } from "@/lib/services/clubService";
+import { noticeService } from "@/lib/services/noticeService";
 
 export default function NoticesTab() {
-  const [notices, setNotices] = useState([
-    {
-      id: 1,
-      title: "Hackathon Registration Deadline",
-      content:
-        "Last date to register for the Annual Hackathon 2025 is December 23rd. Don't miss out on this amazing opportunity!",
-      type: "urgent",
-      createdAt: "2025-12-15",
-      pinned: true,
-    },
-    {
-      id: 2,
-      title: "Club Meeting Schedule",
-      content:
-        "Weekly meetings will be held every Friday at 5 PM in Room 301. All members are encouraged to attend.",
-      type: "info",
-      createdAt: "2025-12-14",
-      pinned: false,
-    },
-    {
-      id: 3,
-      title: "Workshop Materials Available",
-      content:
-        "The materials from our recent Web Development workshop are now available. Check the resources section for download links.",
-      type: "update",
-      createdAt: "2025-12-10",
-      pinned: false,
-    },
-  ]);
+  const [notices, setNotices] = useState([]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState(null);
+  const [currentClubId, setCurrentClubId] = useState(null);
   const [newNotice, setNewNotice] = useState({
     title: "",
     content: "",
     type: "info",
+    clubId: "",
     pinned: false,
   });
 
@@ -64,34 +41,98 @@ export default function NoticesTab() {
     { id: "event", label: "Event", color: "purple", icon: Calendar },
   ];
 
-  const handleCreateNotice = () => {
-    const notice = {
-      id: notices.length + 1,
-      ...newNotice,
-      createdAt: new Date().toISOString().split("T")[0],
+  useEffect(() => {
+    const initializeNotices = async () => {
+      try {
+        const club = await clubService.clubContext();
+
+        if (club) {
+          setCurrentClubId(club.clubId);
+
+          const clubNotices = await noticeService.getByClubId(club.clubId);
+          setNotices(clubNotices);
+        }
+      } catch (error) {
+        console.error("Error initializing notices data:", error);
+      }
     };
-    setNotices([notice, ...notices]);
-    setIsCreateModalOpen(false);
-    setNewNotice({ title: "", content: "", type: "info", pinned: false });
+
+    initializeNotices();
+  }, []);
+
+  const handleCreateNotice = async () => {
+    try {
+      const createdNotice = await noticeService.create({
+        title: newNotice.title,
+        content: newNotice.content,
+        type: newNotice.type,
+        pinned: newNotice.pinned,
+        clubId: currentClubId,
+      });
+
+      setNotices([createdNotice, ...notices]);
+      setIsCreateModalOpen(false);
+      setNewNotice({
+        title: "",
+        content: "",
+        type: "info",
+        clubId: "",
+        pinned: false,
+      });
+    } catch (error) {
+      console.error("Error creating notice:", error);
+      alert("Failed to create notice. Please try again.");
+    }
   };
 
-  const handleUpdateNotice = () => {
-    setNotices(
-      notices.map((n) =>
-        n.id === editingNotice.id ? { ...editingNotice } : n,
-      ),
-    );
-    setEditingNotice(null);
+  const handleUpdateNotice = async () => {
+    if (!editingNotice) return;
+
+    if (!editingNotice.title || !editingNotice.content || !editingNotice.type) {
+      setError("Title, content, and type are required.");
+      return;
+    }
+
+    try {
+      const updated = await noticeService.update(editingNotice.$id, {
+        title: editingNotice.title,
+        content: editingNotice.content,
+        type: editingNotice.type,
+        pinned: editingNotice.pinned,
+      });
+
+      setNotices(
+        notices.map((n) => (n.$id === editingNotice.$id ? updated : n)),
+      );
+      setIsEditModalOpen(false);
+      setEditingNotice(null);
+    } catch (error) {
+      console.error("Error updating notice:", error);
+      alert("Failed to update notice. Please try again.");
+    }
   };
 
-  const handleDeleteNotice = (noticeId) => {
-    setNotices(notices.filter((n) => n.id !== noticeId));
+  const handleDeleteNotice = async (noticeId) => {
+    try {
+      await noticeService.delete(noticeId);
+      setNotices(notices.filter((n) => n.$id !== noticeId));
+    } catch (error) {
+      console.error("Error deleting notice:", error);
+      alert("Failed to delete notice.");
+    }
   };
 
-  const togglePin = (noticeId) => {
-    setNotices(
-      notices.map((n) => (n.id === noticeId ? { ...n, pinned: !n.pinned } : n)),
-    );
+  const togglePin = async (noticeId) => {
+    try {
+      const updated = await noticeService.update(noticeId, {
+        pinned: !notices.find((n) => n.$id === noticeId)?.pinned,
+      });
+
+      setNotices(notices.map((n) => (n.$id === noticeId ? updated : n)));
+    } catch (error) {
+      console.error("Error pinning notice:", error);
+      alert("Failed to pin notice. Please try again.");
+    }
   };
 
   const getTypeConfig = (type) => {
@@ -155,7 +196,7 @@ export default function NoticesTab() {
           const Icon = typeConfig.icon;
           return (
             <motion.div
-              key={notice.id}
+              key={notice.$id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -224,7 +265,7 @@ export default function NoticesTab() {
 
                   <div className="flex items-center gap-1 ml-4">
                     <button
-                      onClick={() => togglePin(notice.id)}
+                      onClick={() => togglePin(notice.$id)}
                       className={`p-2 rounded-lg transition-colors ${
                         notice.pinned
                           ? "bg-violet-500/20 text-violet-500"
@@ -234,13 +275,16 @@ export default function NoticesTab() {
                       <Pin className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => setEditingNotice(notice)}
+                      onClick={() => {
+                        setEditingNotice(notice);
+                        setIsEditModalOpen(true);
+                      }}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-blue-500 transition-colors"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteNotice(notice.id)}
+                      onClick={() => handleDeleteNotice(notice.$id)}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -360,8 +404,11 @@ export default function NoticesTab() {
 
       {/* Edit Notice Modal */}
       <Modal
-        isOpen={!!editingNotice}
-        onClose={() => setEditingNotice(null)}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setEditingNotice(null);
+          setIsEditModalOpen(false);
+        }}
         title="Edit Notice"
       >
         {editingNotice && (
@@ -426,7 +473,10 @@ export default function NoticesTab() {
               <Button
                 variant="ghost"
                 className="flex-1"
-                onClick={() => setEditingNotice(null)}
+                onClick={() => {
+                  setEditingNotice(null);
+                  setIsEditModalOpen(false);
+                }}
               >
                 Cancel
               </Button>

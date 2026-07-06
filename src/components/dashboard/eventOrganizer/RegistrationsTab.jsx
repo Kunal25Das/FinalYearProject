@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   Users,
@@ -11,89 +11,55 @@ import {
   XCircle,
   Mail,
   Eye,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion, AnimatePresence } from "framer-motion";
+import { eventRequestService } from "@/lib/services/eventRequestService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function RegistrationsTab() {
+  const { userProfile } = useAuth();
+  const [registrations, setRegistrations] = useState([]);
+  const [actionId, setActionId] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState(null);
 
-  const events = [
-    { id: "all", name: "All Events" },
-    { id: "1", name: "Hackathon 2025" },
-    { id: "2", name: "Tech Talk: AI" },
-    { id: "3", name: "Coding Workshop" },
-  ];
+  const clubId = userProfile?.joinedClubs[0];
 
-  const [registrations, setRegistrations] = useState([
-    {
-      id: 1,
-      name: "Aditya Verma",
-      email: "aditya@college.edu",
-      phone: "+91 98765 43210",
-      event: "Hackathon 2025",
-      eventId: "1",
-      registeredAt: "2025-01-25 14:30",
-      status: "confirmed",
-      teamName: "Code Warriors",
-      teamSize: 4,
-    },
-    {
-      id: 2,
-      name: "Kavya Sharma",
-      email: "kavya@college.edu",
-      phone: "+91 87654 32109",
-      event: "Hackathon 2025",
-      eventId: "1",
-      registeredAt: "2025-01-24 10:15",
-      status: "pending",
-      teamName: "Tech Titans",
-      teamSize: 3,
-    },
-    {
-      id: 3,
-      name: "Rohan Mehta",
-      email: "rohan@college.edu",
-      phone: "+91 76543 21098",
-      event: "Tech Talk: AI",
-      eventId: "2",
-      registeredAt: "2025-01-23 16:45",
-      status: "confirmed",
-      teamName: null,
-      teamSize: null,
-    },
-    {
-      id: 4,
-      name: "Shruti Nair",
-      email: "shruti@college.edu",
-      phone: "+91 65432 10987",
-      event: "Coding Workshop",
-      eventId: "3",
-      registeredAt: "2025-01-22 09:00",
-      status: "attended",
-      teamName: null,
-      teamSize: null,
-    },
-    {
-      id: 5,
-      name: "Harsh Gupta",
-      email: "harsh@college.edu",
-      phone: "+91 54321 09876",
-      event: "Coding Workshop",
-      eventId: "3",
-      registeredAt: "2025-01-21 11:30",
-      status: "cancelled",
-      teamName: null,
-      teamSize: null,
-    },
-  ]);
+  useEffect(() => {
+    if (!clubId) return;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const docs = await eventRequestService.getClubRequests(clubId);
+        const mapped = docs.map((doc) => ({
+          id: doc.$id,
+          eventId: doc.eventId,
+          event: doc.eventName,
+          name: doc.studentName,
+          email: doc.studentEmail,
+          status: doc.status,
+          registeredAt: new Date(doc.requestedAt).toLocaleString(),
+        }));
+        setRegistrations(mapped);
+      } catch (err) {
+        console.error("Failed to load registrations:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [clubId, userProfile]);
 
   const filteredRegistrations = registrations.filter((reg) => {
     const matchesSearch =
@@ -105,12 +71,25 @@ export default function RegistrationsTab() {
     return matchesSearch && matchesEvent && matchesStatus;
   });
 
-  const handleStatusChange = (regId, newStatus) => {
-    setRegistrations(
-      registrations.map((reg) =>
-        reg.id === regId ? { ...reg, status: newStatus } : reg,
-      ),
-    );
+  const handleStatusChange = async (regId, newStatus) => {
+    setActionId(regId);
+    try {
+      if (newStatus === "accepted") {
+        await eventRequestService.approve(regId);
+      } else if (newStatus === "rejected") {
+        await eventRequestService.reject(regId);
+      }
+      setRegistrations((prev) =>
+        prev.map((reg) =>
+          reg.id === regId ? { ...reg, status: newStatus } : reg,
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to update registration status:", err);
+      alert(err.message);
+    } finally {
+      setActionId(null);
+    }
   };
 
   const getStatusConfig = (status) => {
@@ -150,10 +129,19 @@ export default function RegistrationsTab() {
 
   const stats = {
     total: registrations.length,
-    confirmed: registrations.filter((r) => r.status === "confirmed").length,
+    accepted: registrations.filter((r) => r.status === "accepted").length,
     pending: registrations.filter((r) => r.status === "pending").length,
-    attended: registrations.filter((r) => r.status === "attended").length,
+    rejected: registrations.filter((r) => r.status === "rejected").length,
   };
+
+  const events = [
+    { id: "all", name: "All Events" },
+    ...Array.from(
+      new Map(
+        registrations.map((r) => [r.eventId, { id: r.eventId, name: r.event }]),
+      ).values(),
+    ),
+  ];
 
   return (
     <div className="space-y-6">
@@ -184,9 +172,9 @@ export default function RegistrationsTab() {
         </Card>
         <Card className="text-center">
           <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-            {stats.confirmed}
+            {stats.accepted}
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Confirmed</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Accepted</p>
         </Card>
         <Card className="text-center">
           <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
@@ -196,9 +184,9 @@ export default function RegistrationsTab() {
         </Card>
         <Card className="text-center">
           <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-            {stats.attended}
+            {stats.rejected}
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Attended</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Rejected</p>
         </Card>
       </div>
 
@@ -239,17 +227,14 @@ export default function RegistrationsTab() {
               <option value="all" className="bg-white dark:bg-gray-800">
                 All Status
               </option>
-              <option value="confirmed" className="bg-white dark:bg-gray-800">
-                Confirmed
+              <option value="accepted" className="bg-white dark:bg-gray-800">
+                Accepted
               </option>
               <option value="pending" className="bg-white dark:bg-gray-800">
                 Pending
               </option>
-              <option value="attended" className="bg-white dark:bg-gray-800">
-                Attended
-              </option>
-              <option value="cancelled" className="bg-white dark:bg-gray-800">
-                Cancelled
+              <option value="rejected" className="bg-white dark:bg-gray-800">
+                Rejected
               </option>
             </select>
           </div>
@@ -284,6 +269,8 @@ export default function RegistrationsTab() {
                 {filteredRegistrations.map((reg, index) => {
                   const statusConfig = getStatusConfig(reg.status);
                   const StatusIcon = statusConfig.icon;
+                  const isActing = actionId === reg.id;
+
                   return (
                     <motion.tr
                       key={reg.id}
@@ -310,11 +297,6 @@ export default function RegistrationsTab() {
                         <p className="text-gray-900 dark:text-white">
                           {reg.event}
                         </p>
-                        {reg.teamName && (
-                          <p className="text-sm text-gray-500">
-                            Team: {reg.teamName} ({reg.teamSize})
-                          </p>
-                        )}
                       </td>
                       <td className="py-4 px-4">
                         <p className="text-gray-600 dark:text-gray-400 text-sm">
@@ -351,15 +333,32 @@ export default function RegistrationsTab() {
                             <Mail className="w-4 h-4" />
                           </Button>
                           {reg.status === "pending" && (
-                            <Button
-                              variant="primary"
-                              className="py-1! px-3! text-sm!"
-                              onClick={() =>
-                                handleStatusChange(reg.id, "confirmed")
-                              }
-                            >
-                              Confirm
-                            </Button>
+                            <>
+                              <Button
+                                variant="primary"
+                                className="py-1! px-3! text-sm!"
+                                disabled={isActing}
+                                onClick={() =>
+                                  handleStatusChange(reg.id, "accepted")
+                                }
+                              >
+                                {isActing ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  "Accept"
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="py-1! px-3! text-sm! text-red-600"
+                                disabled={isActing}
+                                onClick={() =>
+                                  handleStatusChange(reg.id, "rejected")
+                                }
+                              >
+                                Reject
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -404,14 +403,6 @@ export default function RegistrationsTab() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Phone
-                </p>
-                <p className="font-medium text-gray-900 dark:text-white">
-                  {selectedRegistration.phone}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Event
                 </p>
                 <p className="font-medium text-gray-900 dark:text-white">
@@ -436,86 +427,51 @@ export default function RegistrationsTab() {
                   {getStatusConfig(selectedRegistration.status).label}
                 </span>
               </div>
-              {selectedRegistration.teamName && (
-                <>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Team Name
-                    </p>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {selectedRegistration.teamName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Team Size
-                    </p>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {selectedRegistration.teamSize} members
-                    </p>
-                  </div>
-                </>
-              )}
             </div>
 
-            <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                Update Status
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant={
-                    selectedRegistration.status === "confirmed"
-                      ? "primary"
-                      : "outline"
-                  }
-                  className="flex-1"
-                  onClick={() => {
-                    handleStatusChange(selectedRegistration.id, "confirmed");
-                    setSelectedRegistration({
-                      ...selectedRegistration,
-                      status: "confirmed",
-                    });
-                  }}
-                >
-                  Confirm
-                </Button>
-                <Button
-                  variant={
-                    selectedRegistration.status === "attended"
-                      ? "primary"
-                      : "outline"
-                  }
-                  className="flex-1"
-                  onClick={() => {
-                    handleStatusChange(selectedRegistration.id, "attended");
-                    setSelectedRegistration({
-                      ...selectedRegistration,
-                      status: "attended",
-                    });
-                  }}
-                >
-                  Mark Attended
-                </Button>
-                <Button
-                  variant={
-                    selectedRegistration.status === "cancelled"
-                      ? "primary"
-                      : "ghost"
-                  }
-                  className="flex-1 text-red-500!"
-                  onClick={() => {
-                    handleStatusChange(selectedRegistration.id, "cancelled");
-                    setSelectedRegistration({
-                      ...selectedRegistration,
-                      status: "cancelled",
-                    });
-                  }}
-                >
-                  Cancel
-                </Button>
+            {selectedRegistration.status === "pending" && (
+              <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  Update Status
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    disabled={actionId === selectedRegistration.id}
+                    onClick={async () => {
+                      await handleStatusChange(
+                        selectedRegistration.id,
+                        "accepted",
+                      );
+                      setSelectedRegistration({
+                        ...selectedRegistration,
+                        status: "accepted",
+                      });
+                    }}
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="flex-1 text-red-500!"
+                    disabled={actionId === selectedRegistration.id}
+                    onClick={async () => {
+                      await handleStatusChange(
+                        selectedRegistration.id,
+                        "rejected",
+                      );
+                      setSelectedRegistration({
+                        ...selectedRegistration,
+                        status: "rejected",
+                      });
+                    }}
+                  >
+                    Reject
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </Modal>

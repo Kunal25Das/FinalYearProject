@@ -21,6 +21,8 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
 import { clubService } from "@/lib/services/clubService";
+import { account } from "@/lib/appwrite";
+import { userService } from "@/lib/services/userService";
 
 export default function EventsTab() {
   const [events, setEvents] = useState([]);
@@ -51,14 +53,21 @@ export default function EventsTab() {
   useEffect(() => {
     const initializeEvents = async () => {
       try {
-        const club = await clubService.clubContext();
+        const user = await account.get();
+        const profile = await userService.getProfile(user.$id);
 
-        if (club) {
-          setCurrentClubId(club.$id);
-
-          const clubEvents = await eventService.getByClubId(club.$id);
-          setEvents(clubEvents);
+        if (!profile?.joinedClubs?.length) {
+          console.warn("User has no joined clubs");
+          return;
         }
+
+        const clubId = profile.joinedClubs[0];
+        setCurrentClubId(clubId);
+        console.log(clubId);
+
+        const clubEvents = await eventService.getByClubId(clubId);
+        console.log(clubEvents);
+        setEvents(clubEvents);
       } catch (error) {
         console.error("Error initializing events data:", error);
       }
@@ -80,7 +89,7 @@ export default function EventsTab() {
         clubId: currentClubId,
       });
 
-      const club = await clubService.clubContext();
+      const club = await clubService.getById(currentClubId);
       club.eventCount = (club.eventCount || 0) + 1;
       await clubService.update(club.$id, { eventCount: club.eventCount });
 
@@ -107,7 +116,7 @@ export default function EventsTab() {
     try {
       await eventService.delete(eventId);
 
-      const club = await clubService.clubContext();
+      const club = await clubService.getById(currentClubId);
       club.eventCount = (club.eventCount || 0) - 1;
       await clubService.update(club.$id, { eventCount: club.eventCount });
 
@@ -144,7 +153,6 @@ export default function EventsTab() {
   };
 
   const registrations = [];
-  const availableVolunteers = [];
 
   return (
     <div className="space-y-6">
@@ -520,95 +528,6 @@ export default function EventsTab() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Assign Volunteers Modal */}
-      <Modal
-        isOpen={isVolunteerModalOpen}
-        onClose={() => setIsVolunteerModalOpen(false)}
-        title={`Manage Volunteers - ${selectedEvent?.title}`}
-        size="lg"
-      >
-        {selectedEvent && (
-          <div className="space-y-6">
-            {/* Current Volunteers */}
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                Assigned Volunteers
-              </h3>
-              {selectedEvent.volunteers.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedEvent.volunteers.map((vol) => (
-                    <div
-                      key={vol.id}
-                      className="flex items-center justify-between p-3 bg-gray-100 dark:bg-white/5 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
-                          {vol.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {vol.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Role: {vol.role}
-                          </p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" className="text-red-500 text-sm!">
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">
-                  No volunteers assigned yet
-                </p>
-              )}
-            </div>
-
-            {/* Add Volunteers */}
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                Add Volunteers
-              </h3>
-              <div className="space-y-2">
-                {availableVolunteers.map((vol) => (
-                  <div
-                    key={vol.id}
-                    className="flex items-center justify-between p-3 bg-gray-100 dark:bg-white/5 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-500">
-                        {vol.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {vol.name}
-                        </p>
-                        <div className="flex gap-1 mt-1">
-                          {vol.skills.map((skill, i) => (
-                            <span
-                              key={i}
-                              className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-white/10 rounded text-gray-600 dark:text-gray-400"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <Button variant="outline" className="text-sm!">
-                      Assign Role
-                    </Button>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
