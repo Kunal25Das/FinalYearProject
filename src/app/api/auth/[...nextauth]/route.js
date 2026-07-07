@@ -140,6 +140,7 @@ export const authOptions = {
           role: user.role,
           requiresPasswordUpdate: user.requiresPasswordUpdate,
           department: user.department,
+          phone: user.phone,
           instituteId: user.institute?._id?.toString(),
         };
       },
@@ -153,6 +154,7 @@ export const authOptions = {
         token.requiresPasswordUpdate = user.requiresPasswordUpdate;
         token.department = user.department;
         token.instituteId = user.instituteId;
+        token.phone = user.phone;
       }
 
       if (trigger === "update" && session) {
@@ -161,6 +163,9 @@ export const authOptions = {
         }
         if (session.name !== undefined) {
           token.name = session.name;
+        }
+        if (session.phone !== undefined) {
+          token.phone = session.phone;
         }
       }
       return token;
@@ -173,6 +178,7 @@ export const authOptions = {
         session.user.requiresPasswordUpdate = token.requiresPasswordUpdate;
         session.user.department = token.department;
         session.user.instituteId = token.instituteId;
+        session.user.phone = token.phone;
       }
       return session;
     },

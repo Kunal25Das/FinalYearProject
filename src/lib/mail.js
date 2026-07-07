@@ -102,3 +102,26 @@ export async function sendApprovalEmail(email, adminName, instituteName) {
 
   return transporter.sendMail(mailOptions);
 }
+
+/**
+ * Sends a custom broadcast email to a recipient list
+ */
+export async function sendCustomEmail({ to, subject, body }) {
+  const mailOptions = {
+    from: `"UniVerse Platform" <${ADMIN_EMAIL}>`,
+    to,
+    subject,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px">
+        <h2 style="color: #6b46c1; text-align: center;">UniVerse Notification</h2>
+        <div style="font-size: 15px; color: #313b4e; line-height: 1.6; white-space: pre-line;">
+          ${body}
+        </div>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="text-align: center; color: #a0aec0; font-size: 12px;">© ${new Date().getFullYear()} UniVerse. All rights reserved.</p>
+      </div>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
+}

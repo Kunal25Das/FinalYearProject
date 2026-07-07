@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   UserPlus,
   UserCheck,
@@ -23,6 +23,7 @@ export default function UserManagementTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null); // Will hold details of newly created user
+  const [departments, setDepartments] = useState([]);
 
   const roles = [
     { id: "student", label: "Student" },
@@ -31,6 +32,25 @@ export default function UserManagementTab() {
     { id: "club-admin", label: "Club Admin" },
     { id: "event-organizer", label: "Event Organizer" },
   ];
+
+  useEffect(() => {
+    const fetchDepts = async () => {
+      try {
+        const res = await fetch("/api/admin/departments");
+        const data = await res.json();
+        if (res.ok && data.departments && data.departments.length > 0) {
+          setDepartments(data.departments);
+          setFormData((prev) => ({
+            ...prev,
+            department: data.departments[0]._id,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to load departments:", err);
+      }
+    };
+    fetchDepts();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,30 +137,37 @@ export default function UserManagementTab() {
                 onChange={(e) =>
                   setFormData({ ...formData, role: e.target.value })
                 }
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#121212] text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
               >
                 {roles.map((r) => (
-                  <option
-                    key={r.id}
-                    value={r.id}
-                    className="bg-gray-900 text-white"
-                  >
+                  <option key={r.id} value={r.id}>
                     {r.label}
                   </option>
                 ))}
               </select>
             </div>
 
-            <Input
-              label="Department (e.g. CSE, ECE, ME)"
-              type="text"
-              placeholder="e.g. CSE"
-              value={formData.department}
-              onChange={(e) =>
-                setFormData({ ...formData, department: e.target.value })
-              }
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                Department
+              </label>
+              <select
+                value={formData.department}
+                onChange={(e) =>
+                  setFormData({ ...formData, department: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#121212] text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              >
+                {departments.map((d) => (
+                  <option
+                    key={d._id || d.id || d.code}
+                    value={d._id || d.id || d.code}
+                  >
+                    {d.code} - {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {error && (

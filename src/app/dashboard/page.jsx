@@ -15,6 +15,7 @@ import WalletTab from "@/components/dashboard/student/WalletTab.jsx";
 import HappeningsTab from "@/components/dashboard/student/HappeningsTab.jsx";
 import ProfileTab from "@/components/dashboard/student/ProfileTab.jsx";
 import SettingsTab from "@/components/dashboard/student/SettingsTab.jsx";
+import CalendarTab from "@/components/dashboard/student/CalendarTab.jsx";
 
 // Club Admin Components
 import ClubHomeTab from "@/components/dashboard/clubAdmin/ClubHomeTab.jsx";
@@ -55,6 +56,9 @@ import FacultyManagementTab from "@/components/dashboard/collegeAdmin/FacultyMan
 import OpportunitiesTab from "@/components/dashboard/collegeAdmin/OpportunitiesTab.jsx";
 import AdminNoticesTab from "@/components/dashboard/collegeAdmin/AdminNoticesTab.jsx";
 import UserManagementTab from "@/components/dashboard/collegeAdmin/UserManagementTab.jsx";
+import ClubManagementTab from "@/components/dashboard/collegeAdmin/ClubManagementTab.jsx";
+import DepartmentManagementTab from "@/components/dashboard/collegeAdmin/DepartmentManagementTab.jsx";
+import EmailBroadcastingTab from "@/components/dashboard/collegeAdmin/EmailBroadcastingTab.jsx";
 
 // Super Admin Components
 import SuperAdminRequestsTab from "@/components/dashboard/superAdmin/SuperAdminRequestsTab.jsx";
@@ -73,17 +77,61 @@ export default function DashboardPage() {
   const { user, loading, userRole } = useAuth();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState("home");
+  const [activeTab, rawSetActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("tab") || "home";
+    }
+    return "home";
+  });
   const [hasClub, setHasClub] = useState(true);
 
-  // Set active tab when role is loaded
+  // Synchronized tab update handler
+  const setActiveTab = (newTab) => {
+    rawSetActiveTab(newTab);
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("tab") !== newTab) {
+        params.set("tab", newTab);
+        window.history.pushState(
+          null,
+          "",
+          `${window.location.pathname}?${params.toString()}`,
+        );
+      }
+    }
+  };
+
+  // Sync tab search param on back/forward or mount
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam) {
+        rawSetActiveTab(tabParam);
+      }
+    };
+    handleUrlChange();
+    window.addEventListener("popstate", handleUrlChange);
+    return () => window.removeEventListener("popstate", handleUrlChange);
+  }, []);
+
+  // Set active tab when role is loaded, if no search param is set
   useEffect(() => {
     if (userRole) {
-      const defaultTab = getDefaultTab(userRole);
-      const timer = setTimeout(() => {
-        setActiveTab(defaultTab);
-      }, 0);
-      return () => clearTimeout(timer);
+      const params = new URLSearchParams(window.location.search);
+      if (!params.get("tab")) {
+        const defaultTab = getDefaultTab(userRole);
+        setTimeout(() => {
+          rawSetActiveTab(defaultTab);
+        }, 0);
+        params.set("tab", defaultTab);
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}?${params.toString()}`,
+        );
+      }
     }
   }, [userRole]);
 
@@ -126,6 +174,8 @@ export default function DashboardPage() {
     switch (activeTab) {
       case "home":
         return <HomeTab setActiveTab={setActiveTab} />;
+      case "calendar":
+        return <CalendarTab />;
       case "schedule":
         return <ScheduleTab />;
       case "classes":
@@ -199,6 +249,8 @@ export default function DashboardPage() {
     switch (activeTab) {
       case "faculty-home":
         return <FacultyHomeTab setActiveTab={setActiveTab} />;
+      case "calendar":
+        return <CalendarTab />;
       case "my-classes":
         return <MyClassesTab />;
       case "assignments":
@@ -222,6 +274,8 @@ export default function DashboardPage() {
     switch (activeTab) {
       case "dept-home":
         return <DeptAdminHomeTab setActiveTab={setActiveTab} />;
+      case "calendar":
+        return <CalendarTab />;
       case "batch-classes":
         return <BatchClassesTab />;
       case "schedule-upload":
@@ -245,6 +299,14 @@ export default function DashboardPage() {
     switch (activeTab) {
       case "admin-home":
         return <AdminHomeTab setActiveTab={setActiveTab} />;
+      case "calendar":
+        return <CalendarTab />;
+      case "department-management":
+        return <DepartmentManagementTab />;
+      case "club-management":
+        return <ClubManagementTab />;
+      case "email-broadcast":
+        return <EmailBroadcastingTab />;
       case "approvals":
         return <ApprovalsTab />;
       case "user-management":

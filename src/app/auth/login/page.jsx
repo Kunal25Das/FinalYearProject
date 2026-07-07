@@ -18,8 +18,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
-  const { login, loginWithGoogle } = useAuth();
+  const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
   const router = useRouter();
+
+  // Redirect to dashboard if user is already logged in (handles browser back actions)
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

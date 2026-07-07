@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Rocket, Star, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext.jsx";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
@@ -17,10 +19,19 @@ export default function SignupPage() {
     instituteAddress: "",
     instituteWebsite: "",
   });
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [stars, setStars] = useState([]);
+
+  // Redirect to dashboard if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
