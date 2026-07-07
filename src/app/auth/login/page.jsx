@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import ReCAPTCHA from "react-google-recaptcha";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -38,7 +37,35 @@ export default function LoginPage() {
       }));
       setStars(newStars);
     }, 0);
-    return () => clearTimeout(timer);
+
+    const isDev =
+      process.env.NEXT_PUBLIC_DISABLE_RECAPTCHA === "true" ||
+      process.env.NODE_ENV === "development";
+    let script;
+
+    if (!isDev) {
+      window.onRecaptchaSuccess = (token) => {
+        setRecaptchaToken(token || "");
+      };
+      window.onRecaptchaExpired = () => {
+        setRecaptchaToken("");
+      };
+
+      script = document.createElement("script");
+      script.src = "https://www.google.com/recaptcha/api.js";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      if (script && document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+      delete window.onRecaptchaSuccess;
+      delete window.onRecaptchaExpired;
+    };
   }, []);
 
   const handleSubmit = async (e) => {
@@ -144,13 +171,15 @@ export default function LoginPage() {
               process.env.NODE_ENV === "development"
             ) && (
               <div className="flex justify-center my-4 overflow-hidden rounded-lg">
-                <ReCAPTCHA
-                  sitekey={
+                <div
+                  className="g-recaptcha"
+                  data-sitekey={
                     process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ||
                     "6LeCxM0SAAAAAHm2W02S3H4v8xWkU528s02S"
                   }
-                  onChange={(token) => setRecaptchaToken(token || "")}
-                  theme="dark"
+                  data-callback="onRecaptchaSuccess"
+                  data-expired-callback="onRecaptchaExpired"
+                  data-theme="dark"
                 />
               </div>
             )}
