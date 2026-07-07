@@ -29,11 +29,12 @@ export function AuthProvider({ children }) {
     }
   }, [session, status, pathname, router]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, recaptchaToken) => {
     try {
       const result = await signIn("credentials", {
         email,
         password,
+        recaptchaToken,
         redirect: false,
       });
 

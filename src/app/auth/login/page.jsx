@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-// import ThemeToggle from "@/components/ThemeToggle.jsx";
+import ReCAPTCHA from "react-google-recaptcha";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState([]);
+  const [recaptchaToken, setRecaptchaToken] = useState("");
   const { user, loading: authLoading, login, loginWithGoogle } = useAuth();
   const router = useRouter();
 
@@ -45,7 +46,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await login(formData.email, formData.password);
+    const isDev =
+      process.env.NEXT_PUBLIC_DISABLE_RECAPTCHA === "true" ||
+      process.env.NODE_ENV === "development";
+    if (!isDev && !recaptchaToken) {
+      setError("Please complete the reCAPTCHA verification.");
+      setLoading(false);
+      return;
+    }
+
+    const result = await login(
+      formData.email,
+      formData.password,
+      recaptchaToken,
+    );
 
     if (result.success) {
       router.push("/dashboard");
@@ -124,6 +138,22 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
+
+            {!(
+              process.env.NEXT_PUBLIC_DISABLE_RECAPTCHA === "true" ||
+              process.env.NODE_ENV === "development"
+            ) && (
+              <div className="flex justify-center my-4 overflow-hidden rounded-lg">
+                <ReCAPTCHA
+                  sitekey={
+                    process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ||
+                    "6LeCxM0SAAAAAHm2W02S3H4v8xWkU528s02S"
+                  }
+                  onChange={(token) => setRecaptchaToken(token || "")}
+                  theme="dark"
+                />
+              </div>
+            )}
 
             {error && (
               <div className="bg-red-500/10 text-red-400 p-3 rounded-lg text-sm border border-red-500/20">
