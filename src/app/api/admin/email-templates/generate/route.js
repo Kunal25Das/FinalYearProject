@@ -30,7 +30,7 @@ export async function POST(req) {
       .replace(/^["']|["']$/g, "")
       .trim();
 
-    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-pro"];
     let lastError = null;
     let text = null;
 
