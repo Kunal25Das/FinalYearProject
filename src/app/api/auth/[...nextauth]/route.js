@@ -13,36 +13,10 @@ export const authOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        recaptchaToken: { label: "reCAPTCHA Token", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Please enter both email and password");
-        }
-
-        // Validate reCAPTCHA Server Side (skip for local dev testing if not set or in dev mode)
-        const isDev =
-          process.env.NEXT_PUBLIC_DISABLE_RECAPTCHA === "true" ||
-          process.env.NODE_ENV === "development";
-        const secretKey =
-          process.env.RECAPCTHA_SERVER_SECRECT ||
-          process.env.RECAPTCHA_SERVER_SECRET;
-        if (!isDev && secretKey) {
-          if (!credentials?.recaptchaToken) {
-            throw new Error("Please complete the reCAPTCHA verification");
-          }
-          try {
-            const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${credentials.recaptchaToken}`;
-            const verifyRes = await fetch(verifyUrl, { method: "POST" });
-            const verifyData = await verifyRes.json();
-            if (!verifyData.success) {
-              throw new Error(
-                "reCAPTCHA verification failed. Please try again.",
-              );
-            }
-          } catch (err) {
-            throw new Error(err.message || "Failed to verify reCAPTCHA");
-          }
         }
 
         await dbConnect();
