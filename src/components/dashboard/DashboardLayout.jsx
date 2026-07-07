@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -20,6 +20,7 @@ import {
   Coins,
   FileText,
   Clock,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import { useRouter } from "next/navigation";
@@ -28,7 +29,16 @@ import ThemeToggle from "@/components/ThemeToggle.jsx";
 export default function DashboardLayout({ children, activeTab, setActiveTab }) {
   const { user, logout, userRole } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      const timer = setTimeout(() => {
+        setSidebarOpen(true);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -43,6 +53,22 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
     { id: "happenings", label: "Happenings", icon: Zap },
     { id: "community", label: "Community", icon: Users },
     { id: "wallet", label: "Wallet", icon: Wallet },
+  ];
+
+  const superAdminMenuItems = [
+    { id: "super-home", label: "Dashboard", icon: Home },
+    { id: "super-requests", label: "Institute Requests", icon: FileText },
+  ];
+
+  const collegeAdminMenuItems = [
+    { id: "admin-home", label: "Dashboard", icon: Home },
+    { id: "approvals", label: "Approvals", icon: FileText },
+    { id: "user-management", label: "Add Users", icon: UserCheck },
+    { id: "student-import", label: "Student Import", icon: Users },
+    { id: "batch-management", label: "Batch Management", icon: BookOpen },
+    { id: "faculty-management", label: "Faculty", icon: Users },
+    { id: "opportunities", label: "Opportunities", icon: Award },
+    { id: "admin-notices", label: "Notices", icon: Bell },
   ];
 
   const clubAdminMenuItems = [
@@ -79,18 +105,12 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
     { id: "dept-notices", label: "Notices", icon: Bell },
   ];
 
-  const collegeAdminMenuItems = [
-    { id: "admin-home", label: "Dashboard", icon: Home },
-    { id: "approvals", label: "Approvals", icon: FileText },
-    { id: "student-import", label: "Student Import", icon: Users },
-    { id: "batch-management", label: "Batch Management", icon: BookOpen },
-    { id: "faculty-management", label: "Faculty", icon: Users },
-    { id: "opportunities", label: "Opportunities", icon: Award },
-    { id: "admin-notices", label: "Notices", icon: Bell },
-  ];
-
   const getMenuItems = () => {
     switch (userRole) {
+      case "super-admin":
+        return superAdminMenuItems;
+      case "college-admin":
+        return collegeAdminMenuItems;
       case "club-admin":
         return clubAdminMenuItems;
       case "event-organizer":
@@ -99,8 +119,6 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
         return facultyMenuItems;
       case "dept-admin":
         return deptAdminMenuItems;
-      case "college-admin":
-        return collegeAdminMenuItems;
       default:
         return studentMenuItems;
     }
@@ -108,8 +126,13 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
 
   const menuItems = getMenuItems();
 
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    setSidebarOpen(false); // Close sidebar drawer on selection (especially for mobile)
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-white pb-16 lg:pb-0">
       {/* Top Navigation */}
       <nav className="fixed top-0 w-full bg-white/80 dark:bg-[#050505]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 z-40">
         <div className="px-4 py-3 flex items-center justify-between">
@@ -136,7 +159,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
             </button>
             <ThemeToggle />
             <button
-              onClick={() => setActiveTab("profile")}
+              onClick={() => handleTabClick("profile")}
               className="flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
             >
               <User className="w-5 h-5 text-purple-500 dark:text-purple-400" />
@@ -148,11 +171,20 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
         </div>
       </nav>
 
-      {/* Sidebar */}
+      {/* Mobile Drawer Backdrop overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden top-16"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Drawer */}
       <motion.aside
-        initial={{ x: 0 }}
+        initial={{ x: -280 }}
         animate={{ x: sidebarOpen ? 0 : -280 }}
-        className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-70 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 z-30 overflow-y-auto"
+        transition={{ type: "tween", duration: 0.2 }}
+        className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-70 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 z-40 overflow-y-auto"
       >
         <div className="p-4 space-y-2">
           {menuItems.map((item) => {
@@ -161,7 +193,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleTabClick(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
                     ? "bg-purple-100 dark:bg-purple-600/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20"
@@ -176,7 +208,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
 
           <div className="pt-4 border-t border-gray-200 dark:border-white/10 space-y-2">
             <button
-              onClick={() => setActiveTab("settings")}
+              onClick={() => handleTabClick("settings")}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all"
             >
               <Settings className="w-5 h-5" />
@@ -195,12 +227,40 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
 
       {/* Main Content */}
       <main
-        className={`pt-16 transition-all duration-300 ${
-          sidebarOpen ? "ml-70" : "ml-0"
+        className={`pt-16 pb-24 lg:pb-6 transition-all duration-300 ${
+          sidebarOpen ? "lg:ml-70" : "ml-0"
         }`}
       >
         <div className="p-6">{children}</div>
       </main>
+
+      {/* PWA Mobile Bottom Navigation Bar (Students only, mobile viewports) */}
+      {userRole === "student" && (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#050505]/95 border-t border-gray-200 dark:border-white/10 z-50 px-2 py-2 pb-safe backdrop-blur-md shadow-lg">
+          <div className="flex justify-around items-center">
+            {studentMenuItems.slice(0, 5).map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabClick(item.id)}
+                  className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
+                    isActive
+                      ? "text-purple-600 dark:text-purple-400 font-semibold scale-105"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[10px] tracking-tight">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

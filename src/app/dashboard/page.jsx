@@ -46,7 +46,7 @@ import FacultyAssignTab from "@/components/dashboard/deptAdmin/FacultyAssignTab.
 import DeptFacultyTab from "@/components/dashboard/deptAdmin/DeptFacultyTab.jsx";
 import DeptNoticesTab from "@/components/dashboard/deptAdmin/DeptNoticesTab.jsx";
 
-// College Admin (Super Admin) Components
+// College Admin Components
 import AdminHomeTab from "@/components/dashboard/collegeAdmin/AdminHomeTab.jsx";
 import ApprovalsTab from "@/components/dashboard/collegeAdmin/ApprovalsTab.jsx";
 import StudentImportTab from "@/components/dashboard/collegeAdmin/StudentImportTab.jsx";
@@ -54,23 +54,38 @@ import BatchManagementTab from "@/components/dashboard/collegeAdmin/BatchManagem
 import FacultyManagementTab from "@/components/dashboard/collegeAdmin/FacultyManagementTab.jsx";
 import OpportunitiesTab from "@/components/dashboard/collegeAdmin/OpportunitiesTab.jsx";
 import AdminNoticesTab from "@/components/dashboard/collegeAdmin/AdminNoticesTab.jsx";
+import UserManagementTab from "@/components/dashboard/collegeAdmin/UserManagementTab.jsx";
+
+// Super Admin Components
+import SuperAdminRequestsTab from "@/components/dashboard/superAdmin/SuperAdminRequestsTab.jsx";
+
+const getDefaultTab = (role) => {
+  if (role === "super-admin") return "super-requests";
+  if (role === "college-admin") return "admin-home";
+  if (role === "club-admin") return "club-home";
+  if (role === "event-organizer") return "organizer-home";
+  if (role === "faculty") return "faculty-home";
+  if (role === "dept-admin") return "dept-home";
+  return "home";
+};
 
 export default function DashboardPage() {
   const { user, loading, userRole } = useAuth();
   const router = useRouter();
 
-  // Set default tab based on role
-  const getDefaultTab = () => {
-    if (userRole === "club-admin") return "club-home";
-    if (userRole === "event-organizer") return "organizer-home";
-    if (userRole === "faculty") return "faculty-home";
-    if (userRole === "dept-admin") return "dept-home";
-    if (userRole === "college-admin") return "admin-home";
-    return "home";
-  };
+  const [activeTab, setActiveTab] = useState("home");
+  const [hasClub, setHasClub] = useState(true);
 
-  const [activeTab, setActiveTab] = useState(getDefaultTab());
-  const [hasClub, setHasClub] = useState(true); // Simulating that admin has a club
+  // Set active tab when role is loaded
+  useEffect(() => {
+    if (userRole) {
+      const defaultTab = getDefaultTab(userRole);
+      const timer = setTimeout(() => {
+        setActiveTab(defaultTab);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [userRole]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -92,6 +107,20 @@ export default function DashboardPage() {
   if (!user) {
     return null;
   }
+
+  const renderSuperAdminContent = () => {
+    switch (activeTab) {
+      case "super-home":
+      case "super-requests":
+        return <SuperAdminRequestsTab />;
+      case "profile":
+        return <ProfileTab />;
+      case "settings":
+        return <SettingsTab />;
+      default:
+        return <SuperAdminRequestsTab />;
+    }
+  };
 
   const renderStudentContent = () => {
     switch (activeTab) {
@@ -119,7 +148,6 @@ export default function DashboardPage() {
   };
 
   const renderClubAdminContent = () => {
-    // If admin doesn't have a club yet, show create club page
     if (!hasClub && activeTab !== "create-club") {
       return <CreateClubTab onClubCreated={() => setHasClub(true)} />;
     }
@@ -219,6 +247,8 @@ export default function DashboardPage() {
         return <AdminHomeTab setActiveTab={setActiveTab} />;
       case "approvals":
         return <ApprovalsTab />;
+      case "user-management":
+        return <UserManagementTab />;
       case "student-import":
         return <StudentImportTab />;
       case "batch-management":
@@ -239,6 +269,12 @@ export default function DashboardPage() {
   };
 
   const renderTabContent = () => {
+    if (userRole === "super-admin") {
+      return renderSuperAdminContent();
+    }
+    if (userRole === "college-admin") {
+      return renderCollegeAdminContent();
+    }
     if (userRole === "club-admin") {
       return renderClubAdminContent();
     }
@@ -250,9 +286,6 @@ export default function DashboardPage() {
     }
     if (userRole === "dept-admin") {
       return renderDeptAdminContent();
-    }
-    if (userRole === "college-admin") {
-      return renderCollegeAdminContent();
     }
     return renderStudentContent();
   };

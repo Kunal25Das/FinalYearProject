@@ -143,12 +143,12 @@ export default function LoginPage() {
               <span className="font-medium">Google</span>
             </button>
             <p className="mt-6 text-center text-gray-400">
-              Don&apos;t have an account?{" "}
+              Set up your college on UniVerse?{" "}
               <Link
                 href="/auth/signup"
                 className="text-purple-400 font-medium hover:underline"
               >
-                Sign up
+                Register Institute
               </Link>
             </p>
           </div>
