@@ -56,6 +56,12 @@ export const authOptions = {
           throw new Error("No user found with this email");
         }
 
+        if (user.isDisabled) {
+          throw new Error(
+            "Your account has been disabled. Please contact your college administrator.",
+          );
+        }
+
         // For college-admin, verify institute status
         if (user.role === "college-admin" && user.institute) {
           if (user.institute.status === "pending") {
@@ -81,6 +87,7 @@ export const authOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          specialRoles: user.specialRoles || [],
           requiresPasswordUpdate: user.requiresPasswordUpdate,
           department: user.department,
           instituteId: user.institute?._id?.toString(),
@@ -110,6 +117,7 @@ export const authOptions = {
             name: admin.name,
             email: admin.email,
             role: admin.role,
+            specialRoles: admin.specialRoles || [],
             requiresPasswordUpdate: admin.requiresPasswordUpdate,
           };
         }
@@ -119,6 +127,12 @@ export const authOptions = {
           // Prevent sign-in for unregistered users
           throw new Error(
             "This email is not registered under any active college in the UniVerse platform.",
+          );
+        }
+
+        if (user.isDisabled) {
+          throw new Error(
+            "Your account has been disabled. Please contact your college administrator.",
           );
         }
 
@@ -138,6 +152,7 @@ export const authOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          specialRoles: user.specialRoles || [],
           requiresPasswordUpdate: user.requiresPasswordUpdate,
           department: user.department,
           phone: user.phone,
@@ -151,6 +166,8 @@ export const authOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.primaryRole = user.role;
+        token.specialRoles = user.specialRoles || [];
         token.requiresPasswordUpdate = user.requiresPasswordUpdate;
         token.department = user.department;
         token.instituteId = user.instituteId;
@@ -167,6 +184,15 @@ export const authOptions = {
         if (session.phone !== undefined) {
           token.phone = session.phone;
         }
+        if (session.role !== undefined) {
+          token.role = session.role;
+        }
+        if (session.specialRoles !== undefined) {
+          token.specialRoles = session.specialRoles;
+        }
+        if (session.primaryRole !== undefined) {
+          token.primaryRole = session.primaryRole;
+        }
       }
       return token;
     },
@@ -175,6 +201,8 @@ export const authOptions = {
         session.user = session.user || {};
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.primaryRole = token.primaryRole;
+        session.user.specialRoles = token.specialRoles || [];
         session.user.requiresPasswordUpdate = token.requiresPasswordUpdate;
         session.user.department = token.department;
         session.user.instituteId = token.instituteId;

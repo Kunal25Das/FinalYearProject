@@ -10,7 +10,12 @@ export function AuthProvider({ children }) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const [customRole, setCustomRole] = useState(null);
+  const [customRole, setCustomRole] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("activeRole") || null;
+    }
+    return null;
+  });
 
   // Derived state from session
   const user = session?.user || null;
@@ -82,6 +87,14 @@ export function AuthProvider({ children }) {
 
   const setUserRole = (role) => {
     setCustomRole(role);
+    if (typeof window !== "undefined") {
+      if (role) {
+        sessionStorage.setItem("activeRole", role);
+      } else {
+        sessionStorage.removeItem("activeRole");
+      }
+    }
+    update({ role });
   };
 
   return (

@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Mail,
-  Plus,
-  Trash2,
-  Sparkles,
-  Loader2,
-  Send,
-  AlertCircle,
-  FileText,
-  User,
-  Users,
-} from "lucide-react";
+import { Mail, Trash2, Sparkles, Loader2, Send, FileText } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -246,7 +235,7 @@ export default function EmailBroadcastingTab() {
           className="bg-purple-600 hover:bg-purple-700 flex items-center gap-2"
         >
           <Sparkles className="w-4 h-4" />
-          AI Template
+          Generate Template
         </Button>
       </div>
 
@@ -325,7 +314,7 @@ export default function EmailBroadcastingTab() {
                         })
                       }
                       required
-                      className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+                      className="bg-white/5 dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
                     />
                   </div>
                 )}
@@ -371,7 +360,7 @@ export default function EmailBroadcastingTab() {
                       className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#121212] text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                     >
                       {batches.map((b) => (
-                        <option key={b._id} value={b.year}>
+                        <option key={b.id || b._id} value={b.year}>
                           {b.year} ({b.name})
                         </option>
                       ))}
@@ -389,7 +378,7 @@ export default function EmailBroadcastingTab() {
                   setComposeData({ ...composeData, subject: e.target.value })
                 }
                 required
-                className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+                className="bg-white/5 border-grey/10 dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
               />
 
               <div>
@@ -448,7 +437,7 @@ export default function EmailBroadcastingTab() {
                   placeholder="e.g. Exam Schedule Release"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+                  className="bg-white/5 border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
                 />
                 <Button
                   onClick={handleSaveTemplate}

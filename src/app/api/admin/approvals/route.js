@@ -108,11 +108,16 @@ export async function POST(req) {
       let tempPassword = "";
 
       if (user) {
-        // Upgrade existing user's role
-        user.role = approvalRequest.type;
+        // Add to special roles of existing user
+        if (!user.specialRoles) {
+          user.specialRoles = [];
+        }
+        if (!user.specialRoles.includes(approvalRequest.type)) {
+          user.specialRoles.push(approvalRequest.type);
+        }
         await user.save();
       } else {
-        // Provision a new user account
+        // Provision a new user account with student primary role
         tempPassword = otpGenerator.generate(8, {
           digits: true,
           lowerCaseAlphabet: true,
@@ -124,7 +129,8 @@ export async function POST(req) {
           name: approvalRequest.requestedBy,
           email: approvalRequest.email.toLowerCase(),
           password: hashPassword(tempPassword),
-          role: approvalRequest.type,
+          role: "student",
+          specialRoles: [approvalRequest.type],
           department: approvalRequest.department || "",
           institute: instituteId,
           requiresPasswordUpdate: true,

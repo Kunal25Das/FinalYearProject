@@ -21,7 +21,6 @@ import {
   Coins,
   FileText,
   Clock,
-  UserCheck,
   Pin,
   Mail,
 } from "lucide-react";
@@ -31,7 +30,7 @@ import ThemeToggle from "@/components/ThemeToggle.jsx";
 import Modal from "@/components/ui/Modal";
 
 export default function DashboardLayout({ children, activeTab, setActiveTab }) {
-  const { user, logout, userRole } = useAuth();
+  const { user, logout, userRole, setUserRole } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -39,6 +38,17 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
   const [showNoticesDropdown, setShowNoticesDropdown] = useState(false);
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+
+  useEffect(() => {
+    if (user && user.specialRoles && user.specialRoles.length > 0) {
+      if (!sessionStorage.getItem("activeRole")) {
+        const timer = setTimeout(() => setShowRoleSelector(true), 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -97,7 +107,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
     { id: "club-management", label: "Clubs", icon: Building },
     { id: "email-broadcast", label: "Email Broadcast", icon: Mail },
     { id: "approvals", label: "Approvals", icon: FileText },
-    { id: "user-management", label: "Add Users", icon: UserCheck },
+    { id: "user-management", label: "Users Directory", icon: Users },
     { id: "student-import", label: "Student Import", icon: Users },
     { id: "batch-management", label: "Batch Management", icon: BookOpen },
     { id: "faculty-management", label: "Faculty", icon: Users },
@@ -148,6 +158,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
       case "college-admin":
         return collegeAdminMenuItems;
       case "club-admin":
+      case "club-advisor":
         return clubAdminMenuItems;
       case "event-organizer":
         return eventOrganizerMenuItems;
@@ -230,7 +241,7 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
                   >
                     <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
                       <h4 className="font-bold text-sm text-gray-900 dark:text-white">
-                        Campus Notices
+                        Notifications
                       </h4>
                       <button
                         onClick={() => {
@@ -294,15 +305,96 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
             </div>
 
             <ThemeToggle />
-            <button
-              onClick={() => handleTabClick("profile")}
-              className="flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-            >
-              <User className="w-5 h-5 text-purple-500 dark:text-purple-400" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                {user?.name || "User"}
-              </span>
-            </button>
+            {user?.specialRoles && user.specialRoles.length > 0 ? (
+              <div className="relative">
+                {/* Role Switcher Dropdown */}
+                <button
+                  onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 rounded-lg border border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors"
+                >
+                  <User className="w-5 h-5" />
+                  <span className="text-sm font-semibold capitalize">
+                    {userRole === "dept-admin"
+                      ? "HOD"
+                      : userRole === "club-admin"
+                        ? "Club Rep"
+                        : userRole.replace("-", " ")}
+                  </span>
+                  <span className="text-xs text-purple-400">
+                    &bull; {user?.name}
+                  </span>
+                </button>
+
+                <AnimatePresence>
+                  {showRoleDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#121212] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                    >
+                      <div className="p-3 border-b border-gray-200 dark:border-white/10 text-xs text-gray-500">
+                        Switch Workspace
+                      </div>
+                      <div className="p-1 space-y-1">
+                        {/* Primary role option */}
+                        {user.primaryRole && (
+                          <button
+                            onClick={() => {
+                              setUserRole(user.primaryRole);
+                              setShowRoleDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                              userRole === user.primaryRole
+                                ? "bg-purple-100 dark:bg-purple-600/20 text-purple-600 dark:text-purple-400"
+                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                            }`}
+                          >
+                            {user.primaryRole === "dept-admin"
+                              ? "HOD"
+                              : user.primaryRole === "club-admin"
+                                ? "Club Rep"
+                                : user.primaryRole.replace("-", " ")}{" "}
+                            (Primary)
+                          </button>
+                        )}
+                        {/* Special roles options */}
+                        {user.specialRoles.map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => {
+                              setUserRole(role);
+                              setShowRoleDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                              userRole === role
+                                ? "bg-purple-100 dark:bg-purple-600/20 text-purple-600 dark:text-purple-400"
+                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                            }`}
+                          >
+                            {role === "dept-admin"
+                              ? "HOD"
+                              : role === "club-admin"
+                                ? "Club Rep"
+                                : role.replace("-", " ")}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleTabClick("profile")}
+                className="flex items-center gap-3 px-4 py-2 bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+              >
+                <User className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  {user?.name || "User"}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -487,6 +579,103 @@ export default function DashboardLayout({ children, activeTab, setActiveTab }) {
           </div>
         )}
       </Modal>
+
+      {/* Workspace / Special Role Selector Overlay Modal */}
+      <AnimatePresence>
+        {showRoleSelector && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-xl z-55 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-[#0c0c0c] border border-gray-200 dark:border-white/10 rounded-2xl p-8 max-w-2xl w-full text-center space-y-6 shadow-2xl relative"
+            >
+              <div className="space-y-2">
+                <div className="w-16 h-16 bg-purple-600/10 border border-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-bounce">
+                  <Sparkles className="w-8 h-8 text-purple-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Welcome to UniVerse
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  You hold multiple workspaces on this account. Which workspace
+                  would you like to open today?
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto p-1">
+                {/* Primary role choice */}
+                {user?.primaryRole && (
+                  <button
+                    onClick={() => {
+                      setUserRole(user.primaryRole);
+                      setShowRoleSelector(false);
+                    }}
+                    className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-white/5 rounded-2xl bg-gray-50 dark:bg-white/2 hover:border-purple-500 dark:hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-950/10 transition-all group text-center space-y-3 cursor-pointer"
+                  >
+                    <div className="w-12 h-12 bg-white dark:bg-white/5 rounded-xl flex items-center justify-center border border-gray-200 dark:border-white/10 group-hover:border-purple-500/35 transition-colors">
+                      {user.primaryRole === "student" ? (
+                        <Users className="w-6 h-6 text-purple-500" />
+                      ) : (
+                        <BookOpen className="w-6 h-6 text-purple-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 dark:text-white capitalize group-hover:text-purple-400 transition-colors">
+                        {user.primaryRole === "dept-admin"
+                          ? "HOD Workspace"
+                          : `${user.primaryRole === "club-admin" ? "Club Rep" : user.primaryRole.replace("-", " ")} Workspace`}
+                      </h4>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                        Primary Account
+                      </p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Special role choices */}
+                {user?.specialRoles?.map((role) => (
+                  <button
+                    key={role}
+                    onClick={() => {
+                      setUserRole(role);
+                      setShowRoleSelector(false);
+                    }}
+                    className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-white/5 rounded-2xl bg-gray-50 dark:bg-white/2 hover:border-purple-500 dark:hover:border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-950/10 transition-all group text-center space-y-3 cursor-pointer"
+                  >
+                    <div className="w-12 h-12 bg-white dark:bg-white/5 rounded-xl flex items-center justify-center border border-gray-200 dark:border-white/10 group-hover:border-purple-500/35 transition-colors">
+                      {role === "club-admin" && (
+                        <Building className="w-6 h-6 text-purple-500" />
+                      )}
+                      {role === "event-organizer" && (
+                        <Sparkles className="w-6 h-6 text-purple-500" />
+                      )}
+                      {role === "club-advisor" && (
+                        <Award className="w-6 h-6 text-purple-500" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 dark:text-white capitalize group-hover:text-purple-400 transition-colors">
+                        {role === "dept-admin"
+                          ? "HOD Workspace"
+                          : `${role === "club-admin" ? "Club Rep" : role.replace("-", " ")}`}
+                      </h4>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                        Special Assignment
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

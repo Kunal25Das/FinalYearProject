@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbConnect } from "@/lib/db";
 import User from "@/models/User";
+import Batch from "@/models/Batch";
+import Department from "@/models/Department";
 import { hashPassword } from "@/lib/auth-utils";
 import { sendOneTimePasswordEmail } from "@/lib/mail";
 import ActivityLog from "@/models/ActivityLog";
@@ -33,6 +35,37 @@ export async function POST(req) {
 
     await dbConnect();
     const instituteId = session.user.instituteId;
+
+    // Fetch department details to resolve code
+    const deptDoc = await Department.findById(department);
+    const deptCode = deptDoc ? deptDoc.code : "Dept";
+
+    // Auto-create Batch if it does not exist under this department and year
+    let batchDoc = await Batch.findOne({
+      year: batch,
+      department: department,
+      institute: instituteId,
+    });
+
+    if (!batchDoc) {
+      batchDoc = await Batch.create({
+        name: `${deptCode} Batch ${batch}`,
+        year: batch,
+        department: department,
+        sections: ["A"],
+        classAdvisor: "Not Assigned",
+        institute: instituteId,
+        status: "active",
+      });
+
+      // Write to ActivityLog
+      await ActivityLog.create({
+        action: "Batch automatically created during student import",
+        details: `${deptCode} Batch ${batch}`,
+        type: "batch",
+        institute: instituteId,
+      });
+    }
 
     let importedCount = 0;
     const errors = [];
@@ -67,7 +100,7 @@ export async function POST(req) {
           email: normalizedEmail,
           password: hashPassword(tempPassword),
           role: "student",
-          department: department.toUpperCase(),
+          department: department, // References Department ObjectId directly
           batch: batch,
           rollNo: rollNo ? rollNo.trim().toUpperCase() : "",
           institute: instituteId,
@@ -99,7 +132,7 @@ export async function POST(req) {
     // Write to ActivityLog
     await ActivityLog.create({
       action: "Students imported",
-      details: `${importedCount} students - ${department.toUpperCase()} Batch ${batch}`,
+      details: `${importedCount} students - ${deptCode} Batch ${batch}`,
       type: "import",
       institute: instituteId,
     });

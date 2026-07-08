@@ -11,7 +11,11 @@ const BatchSchema = new mongoose.Schema(
     }, // References Department model
     sections: [{ type: String }], // e.g. ["A", "B"]
     classAdvisor: { type: String }, // e.g. "Dr. Sharma"
-    status: { type: String, enum: ["active", "archived"], default: "active" },
+    status: {
+      type: String,
+      enum: ["active", "archived", "passout"],
+      default: "active",
+    },
     institute: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Institute",

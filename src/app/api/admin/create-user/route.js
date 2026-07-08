@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbConnect } from "@/lib/db";
 import User from "@/models/User";
+import Batch from "@/models/Batch";
+import Department from "@/models/Department";
 import { hashPassword } from "@/lib/auth-utils";
 import { sendOneTimePasswordEmail } from "@/lib/mail";
 import otpGenerator from "otp-generator";
@@ -15,7 +17,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, email, role, department } = await req.json();
+    const { name, email, role, department, batch } = await req.json();
 
     if (!name || !email || !role) {
       return NextResponse.json(
@@ -24,13 +26,7 @@ export async function POST(req) {
       );
     }
 
-    const allowedRoles = [
-      "dept-admin",
-      "faculty",
-      "student",
-      "club-admin",
-      "event-organizer",
-    ];
+    const allowedRoles = ["dept-admin", "faculty", "student"];
 
     if (!allowedRoles.includes(role)) {
       return NextResponse.json(
@@ -59,13 +55,40 @@ export async function POST(req) {
       specialChars: false,
     });
 
+    // Auto-create Batch if it does not exist under this department and year for student
+    if (role === "student" && batch && department) {
+      const deptDoc = await Department.findById(department);
+      if (deptDoc) {
+        const deptCode = deptDoc.code;
+        const batchDoc = await Batch.findOne({
+          year: batch,
+          department: department,
+          institute: session.user.instituteId,
+        });
+
+        if (!batchDoc) {
+          await Batch.create({
+            name: `${deptCode} Batch ${batch}`,
+            year: batch,
+            department: department,
+            sections: ["A"],
+            classAdvisor: "Not Assigned",
+            institute: session.user.instituteId,
+            status: "active",
+          });
+        }
+      }
+    }
+
     // Create the user linked to college-admin's institute
     const newUser = await User.create({
       name,
       email: normalizedEmail,
       password: hashPassword(tempPassword),
       role,
-      department: department || "",
+      specialRoles: [],
+      department: department || undefined,
+      batch: role === "student" ? batch : undefined,
       institute: session.user.instituteId,
       requiresPasswordUpdate: true,
       isApproved: true,

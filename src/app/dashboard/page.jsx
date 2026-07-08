@@ -337,7 +337,7 @@ export default function DashboardPage() {
     if (userRole === "college-admin") {
       return renderCollegeAdminContent();
     }
-    if (userRole === "club-admin") {
+    if (userRole === "club-admin" || userRole === "club-advisor") {
       return renderClubAdminContent();
     }
     if (userRole === "event-organizer") {

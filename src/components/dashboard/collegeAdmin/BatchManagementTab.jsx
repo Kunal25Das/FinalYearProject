@@ -6,9 +6,7 @@ import {
   Plus,
   Search,
   Trash2,
-  Calendar,
   GraduationCap,
-  Building,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -276,6 +274,61 @@ export default function BatchManagementTab() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {batch.status === "passout" ? (
+                        <span className="px-2.5 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-semibold">
+                          Passout
+                        </span>
+                      ) : (
+                        batch.year === new Date().getFullYear().toString() && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (
+                                confirm(
+                                  `Are you sure you want to mark ${batch.name} as Passout?`,
+                                )
+                              ) {
+                                setActioningId(batch.id);
+                                try {
+                                  const res = await fetch(
+                                    "/api/admin/batches",
+                                    {
+                                      method: "PUT",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                      },
+                                      body: JSON.stringify({
+                                        id: batch.id,
+                                        status: "passout",
+                                      }),
+                                    },
+                                  );
+                                  if (!res.ok) {
+                                    const data = await res.json();
+                                    throw new Error(
+                                      data.error || "Failed to update batch",
+                                    );
+                                  }
+                                  alert(
+                                    "Batch successfully marked as Passout!",
+                                  );
+                                  fetchBatches();
+                                } catch (err) {
+                                  alert(err.message);
+                                } finally {
+                                  setActioningId(null);
+                                }
+                              }
+                            }}
+                            disabled={actioningId !== null}
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3"
+                          >
+                            Mark as Passout
+                          </Button>
+                        )
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -348,7 +401,7 @@ export default function BatchManagementTab() {
                                     <td className="p-3 font-mono text-purple-400">
                                       {stud.rollNo}
                                     </td>
-                                    <td className="p-3 font-medium text-white">
+                                    <td className="p-3 font-medium text-slate dark:text-white">
                                       {stud.name}
                                     </td>
                                     <td className="p-3">{stud.email}</td>
@@ -385,7 +438,7 @@ export default function BatchManagementTab() {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
-            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+            className="bg-white/5 border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -398,7 +451,7 @@ export default function BatchManagementTab() {
                 setFormData({ ...formData, year: e.target.value })
               }
               required
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+              className="bg-white/5 border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
             />
 
             <div>

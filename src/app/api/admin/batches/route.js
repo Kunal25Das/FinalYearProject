@@ -4,7 +4,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbConnect } from "@/lib/db";
 import Batch from "@/models/Batch";
 import User from "@/models/User";
-import Department from "@/models/Department";
 import ActivityLog from "@/models/ActivityLog";
 
 export async function GET() {
@@ -168,6 +167,54 @@ export async function DELETE(req) {
     console.error("Delete batch error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to delete batch" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(req) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user || session.user.role !== "college-admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id, status } = await req.json();
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: "Batch ID and status are required fields" },
+        { status: 400 },
+      );
+    }
+
+    await dbConnect();
+    const instituteId = session.user.instituteId;
+
+    const batch = await Batch.findOneAndUpdate(
+      { _id: id, institute: instituteId },
+      { status },
+      { new: true },
+    );
+
+    if (!batch) {
+      return NextResponse.json({ error: "Batch not found" }, { status: 404 });
+    }
+
+    // Write to ActivityLog
+    await ActivityLog.create({
+      action: `Batch status updated to ${status}`,
+      details: batch.name,
+      type: "batch",
+      institute: instituteId,
+    });
+
+    return NextResponse.json({ success: true, batch });
+  } catch (error) {
+    console.error("Update batch error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to update batch" },
       { status: 500 },
     );
   }

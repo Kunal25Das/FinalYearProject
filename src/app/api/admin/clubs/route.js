@@ -6,7 +6,7 @@ import Club from "@/models/Club";
 import User from "@/models/User";
 import ActivityLog from "@/models/ActivityLog";
 
-export async function GET(req) {
+export async function GET(_req) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -81,9 +81,12 @@ export async function POST(req) {
       institute: instituteId,
     });
 
-    // Appoint student as club-admin role
+    // Appoint student as club-admin special role, and faculty as club-advisor special role
     await User.findByIdAndUpdate(studentRepresentativeId, {
-      role: "club-admin",
+      $addToSet: { specialRoles: "club-admin" },
+    });
+    await User.findByIdAndUpdate(facultyCoordinatorId, {
+      $addToSet: { specialRoles: "club-advisor" },
     });
 
     // Log Activity
@@ -134,16 +137,26 @@ export async function PUT(req) {
     club.status = "disbanded";
     await club.save();
 
-    // Revert the student rep's role back to standard student, if they aren't managing other clubs
-    const otherActiveClubs = await Club.find({
+    // Revert the student rep's and faculty coordinator's special roles if they aren't managing other clubs
+    const otherActiveStudentClubs = await Club.find({
       studentRepresentative: club.studentRepresentative,
       status: "active",
       institute: instituteId,
     });
-
-    if (otherActiveClubs.length === 0) {
+    if (otherActiveStudentClubs.length === 0) {
       await User.findByIdAndUpdate(club.studentRepresentative, {
-        role: "student",
+        $pull: { specialRoles: "club-admin" },
+      });
+    }
+
+    const otherActiveFacultyClubs = await Club.find({
+      facultyCoordinator: club.facultyCoordinator,
+      status: "active",
+      institute: instituteId,
+    });
+    if (otherActiveFacultyClubs.length === 0) {
+      await User.findByIdAndUpdate(club.facultyCoordinator, {
+        $pull: { specialRoles: "club-advisor" },
       });
     }
 
