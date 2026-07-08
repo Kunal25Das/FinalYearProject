@@ -418,7 +418,7 @@ export default function AdminHomeTab({ setActiveTab }) {
                     key={event.id}
                     className="flex items-start gap-3 p-3 bg-gray-100 dark:bg-white/5 rounded-lg border border-gray-200/50 dark:border-white/5"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex flex-col items-center justify-center text-purple-400 font-bold shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex flex-col items-center justify-center text-purple-700 dark:text-purple-400 font-bold shrink-0">
                       <span className="text-[10px] uppercase font-medium">
                         {parts[0] || "Dec"}
                       </span>
@@ -570,7 +570,7 @@ export default function AdminHomeTab({ setActiveTab }) {
                 setEventForm({ ...eventForm, title: e.target.value })
               }
               required
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+              className="bg-white/5 text-black dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
             />
 
             <Input
@@ -581,7 +581,7 @@ export default function AdminHomeTab({ setActiveTab }) {
                 setEventForm({ ...eventForm, date: e.target.value })
               }
               required
-              className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+              className="bg-white/5 text-black dark:border-white/10 dark:text-white focus:border-purple-500"
             />
 
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer pt-1">

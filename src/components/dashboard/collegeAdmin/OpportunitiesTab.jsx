@@ -328,10 +328,7 @@ export default function OpportunitiesTab() {
         onClose={() => setShowCreateModal(false)}
         title="Publish Opportunity"
       >
-        <form
-          onSubmit={handleCreateSubmit}
-          className="space-y-4 max-h-[75vh] overflow-y-auto pr-2"
-        >
+        <form onSubmit={handleCreateSubmit} className="space-y-4">
           <Input
             label="Job / Event Title"
             type="text"
@@ -341,7 +338,7 @@ export default function OpportunitiesTab() {
               setFormData({ ...formData, title: e.target.value })
             }
             required
-            className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+            className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -354,7 +351,7 @@ export default function OpportunitiesTab() {
                 setFormData({ ...formData, company: e.target.value })
               }
               required
-              className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+              className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
             />
 
             <div>
@@ -386,7 +383,7 @@ export default function OpportunitiesTab() {
               onChange={(e) =>
                 setFormData({ ...formData, location: e.target.value })
               }
-              className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+              className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
             />
 
             <Input
@@ -397,7 +394,7 @@ export default function OpportunitiesTab() {
               onChange={(e) =>
                 setFormData({ ...formData, salary: e.target.value })
               }
-              className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+              className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
             />
           </div>
 
@@ -410,7 +407,7 @@ export default function OpportunitiesTab() {
                 setFormData({ ...formData, deadline: e.target.value })
               }
               required
-              className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+              className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
             />
 
             <Input
@@ -421,7 +418,7 @@ export default function OpportunitiesTab() {
               onChange={(e) =>
                 setFormData({ ...formData, departmentsText: e.target.value })
               }
-              className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+              className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
             />
           </div>
 
@@ -433,7 +430,7 @@ export default function OpportunitiesTab() {
             onChange={(e) =>
               setFormData({ ...formData, eligibility: e.target.value })
             }
-            className="bg-white/5 border-white/10 text-white focus:border-purple-500"
+            className="bg-white/5 dark:border-white/10 text-black dark:text-white focus:border-purple-500"
           />
 
           <div>

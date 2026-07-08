@@ -311,7 +311,7 @@ export default function CalendarTab() {
               setEventForm({ ...eventForm, title: e.target.value })
             }
             required
-            className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+            className="bg-white/5 dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
           />
 
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer pt-1">

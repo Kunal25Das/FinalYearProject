@@ -360,10 +360,7 @@ export default function AdminNoticesTab() {
         onClose={() => setShowCreateModal(false)}
         title="Publish Official Notice"
       >
-        <form
-          onSubmit={handleCreateSubmit}
-          className="space-y-4 max-h-[75vh] overflow-y-auto pr-2"
-        >
+        <form onSubmit={handleCreateSubmit} className="space-y-4">
           <Input
             label="Notice Title"
             type="text"
