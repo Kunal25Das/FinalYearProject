@@ -6,7 +6,17 @@ const ActivityLogSchema = new mongoose.Schema(
     details: { type: String, required: true }, // e.g. "CSE Batch 2025"
     type: {
       type: String,
-      enum: ["batch", "faculty", "approval", "notice", "import"],
+      enum: [
+        "batch",
+        "faculty",
+        "approval",
+        "notice",
+        "import",
+        "club",
+        "notices",
+        "calendar",
+        "department",
+      ],
       required: true,
     },
     institute: {
