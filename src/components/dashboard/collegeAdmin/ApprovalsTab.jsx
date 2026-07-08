@@ -34,7 +34,7 @@ export default function ApprovalsTab() {
 
   const requestTypes = [
     { id: "all", name: "All Types" },
-    { id: "club-admin", name: "Club Admin" },
+    { id: "club-admin", name: "Club Rep" },
     { id: "event-organizer", name: "Event Organizer" },
   ];
 

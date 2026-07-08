@@ -91,7 +91,7 @@ export default function ClubHomeTab({ setActiveTab, clubData }) {
             {club.name}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Club Admin Dashboard
+            Club Dashboard
           </p>
         </div>
         <div className="flex gap-3">
