@@ -18,6 +18,7 @@ const DepartmentSchema = new mongoose.Schema(
       ref: "Institute",
       required: true,
     },
+    defaultMaxLoad: { type: Number, default: 16 },
   },
   { timestamps: true },
 );

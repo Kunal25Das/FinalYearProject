@@ -51,31 +51,32 @@ export default function DeptNoticesTab() {
     { id: "batch", name: "Specific Batch" },
   ];
 
-  const batches = [
-    { id: "2024", name: "Batch 2024" },
-    { id: "2023", name: "Batch 2023" },
-    { id: "2022", name: "Batch 2022" },
-    { id: "2021", name: "Batch 2021" },
-  ];
-
+  const [batches, setBatches] = useState([]);
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadNotices() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/dept-admin/notices");
-        const data = await res.json();
-        if (data.success) {
-          setNotices(data.notices);
+        const [noticesRes, batchesRes] = await Promise.all([
+          fetch("/api/dept-admin/notices"),
+          fetch("/api/dept-admin/batches"),
+        ]);
+        const noticesData = await noticesRes.json();
+        const batchesData = await batchesRes.json();
+        if (noticesData.success) {
+          setNotices(noticesData.notices);
+        }
+        if (batchesData.success) {
+          setBatches(batchesData.batches);
         }
       } catch (err) {
-        console.error("Failed to load notices:", err);
+        console.error("Failed to load notices/batches:", err);
       } finally {
         setLoading(false);
       }
     }
-    loadNotices();
+    loadData();
   }, []);
 
   const handleCreateNotice = async () => {

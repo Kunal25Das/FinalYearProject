@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbConnect } from "@/lib/db";
 import User from "@/models/User";
 import Class from "@/models/Class";
+import Department from "@/models/Department";
 
 export async function GET() {
   try {
@@ -23,6 +24,9 @@ export async function GET() {
         { status: 400 },
       );
     }
+
+    const deptDoc = await Department.findById(deptId);
+    const defaultMaxLoad = deptDoc?.defaultMaxLoad || 16;
 
     // Fetch all users with role 'faculty' under this department
     const facultyList = await User.find({
@@ -75,7 +79,7 @@ export async function GET() {
           qualification: f.qualification || "Ph.D. / M.Tech",
           experience: f.experience || "5 years",
           currentLoad,
-          maxLoad: f.maxLoad || 16,
+          maxLoad: f.maxLoad || defaultMaxLoad,
           assignedClasses,
           publications: f.publications || 0,
           joinedDate: new Date(f.createdAt).getFullYear().toString(),

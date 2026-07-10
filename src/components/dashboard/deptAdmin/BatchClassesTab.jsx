@@ -34,32 +34,35 @@ export default function BatchClassesTab() {
     hoursPerWeek: "",
   });
 
-  const batches = [
-    { id: "all", name: "All Batches" },
-    { id: "2024", name: "Batch 2024 (1st Year)" },
-    { id: "2023", name: "Batch 2023 (2nd Year)" },
-    { id: "2022", name: "Batch 2022 (3rd Year)" },
-    { id: "2021", name: "Batch 2021 (4th Year)" },
-  ];
-
+  const [batches, setBatches] = useState([{ id: "all", name: "All Batches" }]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadClasses() {
+    async function loadData() {
       try {
-        const res = await fetch("/api/dept-admin/classes");
-        const data = await res.json();
-        if (data.success) {
-          setClasses(data.classes);
+        const [clsRes, batchRes] = await Promise.all([
+          fetch("/api/dept-admin/classes"),
+          fetch("/api/dept-admin/batches"),
+        ]);
+        const clsData = await clsRes.json();
+        const batchData = await batchRes.json();
+        if (clsData.success) {
+          setClasses(clsData.classes);
+        }
+        if (batchData.success) {
+          setBatches([
+            { id: "all", name: "All Batches" },
+            ...batchData.batches,
+          ]);
         }
       } catch (err) {
-        console.error("Error loading classes:", err);
+        console.error("Error loading data:", err);
       } finally {
         setLoading(false);
       }
     }
-    loadClasses();
+    loadData();
   }, []);
 
   const filteredClasses = classes.filter((cls) => {

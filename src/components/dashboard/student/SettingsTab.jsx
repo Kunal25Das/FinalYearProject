@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings,
   Lock,
@@ -16,9 +16,60 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useTheme } from "@/contexts/ThemeContext.jsx";
+import { useAuth } from "@/contexts/AuthContext.jsx";
 
 export default function SettingsTab() {
   const { theme, toggleTheme } = useTheme();
+  const { userRole } = useAuth();
+
+  // Faculty Max Load settings for HOD
+  const [defaultMaxLoad, setDefaultMaxLoad] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loadSuccess, setLoadSuccess] = useState("");
+  const [loadLoading, setLoadLoading] = useState(false);
+
+  useEffect(() => {
+    if (userRole === "dept-admin") {
+      async function fetchDeptSettings() {
+        try {
+          const res = await fetch("/api/dept-admin/settings");
+          const data = await res.json();
+          if (data.success) {
+            setDefaultMaxLoad(data.defaultMaxLoad.toString());
+          }
+        } catch (err) {
+          console.error("Error loading department settings:", err);
+        }
+      }
+      fetchDeptSettings();
+    }
+  }, [userRole]);
+
+  const handleMaxLoadSubmit = async (e) => {
+    e.preventDefault();
+    setLoadError("");
+    setLoadSuccess("");
+    setLoadLoading(true);
+
+    try {
+      const res = await fetch("/api/dept-admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          defaultMaxLoad: parseInt(defaultMaxLoad),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.error || "Failed to update max load limit");
+
+      setLoadSuccess("Department load limit updated successfully!");
+    } catch (err) {
+      setLoadError(err.message);
+    } finally {
+      setLoadLoading(false);
+    }
+  };
 
   // Password Update State
   const [passwords, setPasswords] = useState({
@@ -295,6 +346,63 @@ export default function SettingsTab() {
           </div>
         </Card>
       </div>
+
+      {userRole === "dept-admin" && (
+        <Card className="border border-gray-200 dark:border-white/10 space-y-4">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Settings className="w-5 h-5 text-purple-500" />
+            <span>Department Faculty Load Settings</span>
+          </h3>
+          <p className="text-xs text-gray-500">
+            Set the default maximum weekly teaching hours limit for faculty in
+            your department.
+          </p>
+
+          <form onSubmit={handleMaxLoadSubmit} className="space-y-4 max-w-md">
+            <Input
+              label="Default Max Load Limit (hours/week)"
+              type="number"
+              min="1"
+              max="40"
+              placeholder="e.g. 16"
+              value={defaultMaxLoad}
+              onChange={(e) => setDefaultMaxLoad(e.target.value)}
+              required
+              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+            />
+
+            {loadError && (
+              <div className="flex items-center gap-2 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{loadError}</span>
+              </div>
+            )}
+
+            {loadSuccess && (
+              <div className="flex items-center gap-2 p-3 text-xs bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                <span>{loadSuccess}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full bg-purple-600 hover:bg-purple-700"
+              disabled={loadLoading}
+            >
+              {loadLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                "Save Configuration"
+              )}
+            </Button>
+          </form>
+        </Card>
+      )}
     </div>
   );
 }
