@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Upload,
   Search,
@@ -43,6 +43,9 @@ export default function ResourcesTab() {
   const [resources, setResources] = useState([]);
   const [myClasses, setMyClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef(null);
 
   async function loadResources() {
     try {
@@ -85,16 +88,21 @@ export default function ResourcesTab() {
       return;
     }
 
+    setIsUploadingFile(true);
+
     try {
+      const formData = new FormData();
+      formData.append("title", uploadForm.title);
+      formData.append("description", uploadForm.description || "");
+      formData.append("type", uploadForm.type);
+      formData.append("classId", uploadForm.classId);
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      }
+
       const res = await fetch("/api/faculty/resources", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: uploadForm.title,
-          description: uploadForm.description,
-          type: uploadForm.type,
-          classId: uploadForm.classId,
-        }),
+        body: formData,
       });
       const data = await res.json();
       if (data.success) {
@@ -106,12 +114,16 @@ export default function ResourcesTab() {
           classId: "",
           type: "notes",
         });
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       } else {
         alert(data.error || "Failed to upload resource");
       }
     } catch (err) {
       console.error(err);
       alert("An error occurred while uploading resource");
+    } finally {
+      setIsUploadingFile(false);
     }
   };
 
@@ -298,12 +310,28 @@ export default function ResourcesTab() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" className="p-2!">
+                          <a
+                            href={resource.fileUrl || "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          >
                             <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" className="p-2!">
+                          </a>
+                          <a
+                            href={
+                              resource.fileUrl
+                                ? resource.fileUrl.replace(
+                                    "/view?",
+                                    "/download?",
+                                  )
+                                : "#"
+                            }
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                            download
+                          >
                             <Download className="w-4 h-4" />
-                          </Button>
+                          </a>
                           <Button
                             variant="ghost"
                             className="p-2! text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
@@ -425,28 +453,84 @@ export default function ResourcesTab() {
             />
           </div>
 
-          <div className="p-6 bg-gray-100 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-white/20 text-center cursor-pointer hover:border-purple-400 transition-colors">
-            <Upload className="w-10 h-10 mx-auto text-gray-400 mb-3" />
-            <p className="font-medium text-gray-700 dark:text-gray-300">
-              Drag & drop files here
-            </p>
-            <p className="text-sm text-gray-500 mt-1">or click to browse</p>
-            <p className="text-xs text-gray-400 mt-2">
-              PDF, DOC, PPT, ZIP up to 50MB
-            </p>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-6 rounded-lg border-2 border-dashed text-center cursor-pointer transition-colors ${
+              selectedFile
+                ? "border-green-500/50 bg-green-500/5"
+                : "border-gray-300 dark:border-white/20 hover:border-purple-400 bg-gray-100 dark:bg-white/5"
+            }`}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => setSelectedFile(e.target.files[0] || null)}
+              style={{ display: "none" }}
+            />
+            {selectedFile ? (
+              <div className="flex flex-col items-center">
+                <span className="text-xl">📄</span>
+                <p className="font-medium text-gray-900 dark:text-white mt-2 max-w-[250px] truncate">
+                  {selectedFile.name}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {(selectedFile.size / 1024).toFixed(0)} KB
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="mt-3 text-xs text-red-500 hover:text-red-700 font-medium"
+                >
+                  Remove File
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-10 h-10 mx-auto text-gray-400 mb-3" />
+                <p className="font-medium text-gray-700 dark:text-gray-300">
+                  Drag & drop files here
+                </p>
+                <p className="text-sm text-gray-500 mt-1">or click to browse</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  PDF, DOC, PPT, ZIP up to 50MB
+                </p>
+              </>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
             <Button
               variant="ghost"
               className="flex-1"
-              onClick={() => setShowUploadModal(false)}
+              onClick={() => {
+                setShowUploadModal(false);
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              disabled={isUploadingFile}
             >
               Cancel
             </Button>
-            <Button className="flex-1" onClick={handleUpload}>
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Resource
+            <Button
+              className="flex-1"
+              onClick={handleUpload}
+              disabled={isUploadingFile}
+            >
+              {isUploadingFile ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Resource
+                </>
+              )}
             </Button>
           </div>
         </div>

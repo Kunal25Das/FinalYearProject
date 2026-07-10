@@ -170,7 +170,14 @@ export default function ScheduleManagerTab() {
         </Card>
         <Card className="text-center">
           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-            {schedules.reduce((sum, s) => sum + s.students, 0)}
+            {Array.from(
+              new Set(schedules.map((s) => s.rawBatch || s.batch)),
+            ).reduce((sum, batchKey) => {
+              const match = schedules.find(
+                (s) => (s.rawBatch || s.batch) === batchKey,
+              );
+              return sum + (match ? match.students : 0);
+            }, 0)}
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Total Students

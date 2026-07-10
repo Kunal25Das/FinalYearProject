@@ -126,49 +126,126 @@ export async function POST(req) {
       );
     }
 
-    // Set any previous active schedules for this batch and semester to replaced
-    await Schedule.updateMany(
-      {
+    const overwrite = formData.get("overwrite") === "true";
+
+    if (overwrite) {
+      // Set any previous active schedules for this batch and semester to replaced
+      await Schedule.updateMany(
+        {
+          department: deptId,
+          institute: instituteId,
+          batch,
+          semester,
+          status: "active",
+        },
+        { $set: { status: "replaced" } },
+      );
+
+      // Create new active schedule
+      const schedule = await Schedule.create({
+        department: deptId,
+        institute: instituteId,
+        batch,
+        semester,
+        fileName: file.name,
+        uploadedBy: session.user.id,
+        scheduleData,
+        status: "active",
+      });
+
+      return NextResponse.json({
+        success: true,
+        schedule: {
+          id: schedule._id.toString(),
+          batch: schedule.batch,
+          semester: schedule.semester,
+          fileName: schedule.fileName,
+          uploadedAt: new Date(schedule.createdAt).toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+          uploadedBy: session.user.name || "Dr. HOD",
+          status: schedule.status,
+          scheduleData: schedule.scheduleData,
+        },
+      });
+    } else {
+      // Find existing active schedule to append to
+      const existingActive = await Schedule.findOne({
         department: deptId,
         institute: instituteId,
         batch,
         semester,
         status: "active",
-      },
-      { $set: { status: "replaced" } },
-    );
+      });
 
-    // Create new active schedule
-    const schedule = await Schedule.create({
-      department: deptId,
-      institute: instituteId,
-      batch,
-      semester,
-      fileName: file.name,
-      uploadedBy: session.user.id,
-      scheduleData,
-      status: "active",
-    });
+      if (existingActive) {
+        // Append new slots and update file metadata
+        existingActive.scheduleData.push(...scheduleData);
+        if (!existingActive.fileName.includes(file.name)) {
+          existingActive.fileName = `${existingActive.fileName}, ${file.name}`;
+        }
+        await existingActive.save();
 
-    return NextResponse.json({
-      success: true,
-      schedule: {
-        id: schedule._id.toString(),
-        batch: schedule.batch,
-        semester: schedule.semester,
-        fileName: schedule.fileName,
-        uploadedAt: new Date(schedule.createdAt).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        }),
-        uploadedBy: session.user.name || "Dr. HOD",
-        status: schedule.status,
-        scheduleData: schedule.scheduleData,
-      },
-    });
+        return NextResponse.json({
+          success: true,
+          schedule: {
+            id: existingActive._id.toString(),
+            batch: existingActive.batch,
+            semester: existingActive.semester,
+            fileName: existingActive.fileName,
+            uploadedAt: new Date(existingActive.createdAt).toLocaleString(
+              "en-US",
+              {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              },
+            ),
+            uploadedBy: session.user.name || "Dr. HOD",
+            status: existingActive.status,
+            scheduleData: existingActive.scheduleData,
+          },
+        });
+      } else {
+        // If none exists, create a new active one
+        const schedule = await Schedule.create({
+          department: deptId,
+          institute: instituteId,
+          batch,
+          semester,
+          fileName: file.name,
+          uploadedBy: session.user.id,
+          scheduleData,
+          status: "active",
+        });
+
+        return NextResponse.json({
+          success: true,
+          schedule: {
+            id: schedule._id.toString(),
+            batch: schedule.batch,
+            semester: schedule.semester,
+            fileName: schedule.fileName,
+            uploadedAt: new Date(schedule.createdAt).toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+            uploadedBy: session.user.name || "Dr. HOD",
+            status: schedule.status,
+            scheduleData: schedule.scheduleData,
+          },
+        });
+      }
+    }
   } catch (error) {
     console.error("Upload schedule error:", error);
     return NextResponse.json(

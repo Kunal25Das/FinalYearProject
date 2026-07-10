@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dbConnect } from "@/lib/db";
 import Notice from "@/models/Notice";
 import Class from "@/models/Class";
+import User from "@/models/User";
 
 // GET: Fetch faculty-authored notices and class lists for posting dropdowns
 export async function GET() {
@@ -17,6 +18,7 @@ export async function GET() {
     await dbConnect();
     const facultyId = session.user.id;
     const instituteId = session.user.instituteId;
+    const deptId = session.user.department;
 
     // Fetch classes assigned to this faculty
     const classes = await Class.find({
@@ -24,12 +26,27 @@ export async function GET() {
       institute: instituteId,
     });
 
+    // Query dynamic student counts per batch to prevent displaying 0 students
+    const uniqueBatches = [...new Set(classes.map((c) => c.batch))];
+    const studentCountMap = {};
+    await Promise.all(
+      uniqueBatches.map(async (batchStr) => {
+        const count = await User.countDocuments({
+          role: "student",
+          department: deptId,
+          institute: instituteId,
+          batch: batchStr,
+        });
+        studentCountMap[batchStr] = count;
+      }),
+    );
+
     const myClasses = [
       { id: "all", name: "All Classes" },
       ...classes.map((c) => ({
         id: c._id.toString(),
         name: `${c.name} (${c.batch})`,
-        students: c.students || 0,
+        students: studentCountMap[c.batch] || 0,
       })),
     ];
 

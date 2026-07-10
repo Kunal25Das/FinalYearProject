@@ -74,7 +74,12 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, description, type, classId } = await req.json();
+    const formData = await req.formData();
+    const title = formData.get("title");
+    const description = formData.get("description") || "";
+    const type = formData.get("type") || "notes";
+    const classId = formData.get("classId");
+    const file = formData.get("file");
 
     if (!title || !classId) {
       return NextResponse.json(
@@ -85,16 +90,69 @@ export async function POST(req) {
 
     await dbConnect();
 
+    let fileUrl = "/mock/file.pdf";
+    let fileSize = "1.2 MB";
+    const fileName = file
+      ? file.name
+      : title.toLowerCase().replace(/\s+/g, "_") + ".pdf";
+
+    if (file) {
+      // Upload to Appwrite Storage server-side!
+      const endpoint =
+        process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ||
+        "https://fra.cloud.appwrite.io/v1";
+      const bucketId = (
+        process.env.APPWRITE_BUCKET_ID || "6a4cb689003165e24143"
+      ).replace(/^"|"$/g, "");
+      const projectId = (
+        process.env.APPWRITE_PROJECT_ID || "6a4cb5500038fd245209"
+      ).replace(/^"|"$/g, "");
+      const apiKey = (process.env.APPWRITE_API_KEY || "").replace(/^"|"$/g, "");
+
+      const appwriteFormData = new FormData();
+      appwriteFormData.append("fileId", "unique()");
+      appwriteFormData.append("file", file);
+
+      const appwriteRes = await fetch(
+        `${endpoint}/storage/buckets/${bucketId}/files`,
+        {
+          method: "POST",
+          headers: {
+            "X-Appwrite-Project": projectId,
+            "X-Appwrite-Key": apiKey,
+          },
+          body: appwriteFormData,
+        },
+      );
+
+      if (!appwriteRes.ok) {
+        const errText = await appwriteRes.text();
+        console.error("Appwrite upload error:", errText);
+        throw new Error("Failed to upload file to Appwrite storage bucket");
+      }
+
+      const responseData = await appwriteRes.json();
+      const fileId = responseData.$id;
+      fileUrl = `${endpoint}/storage/buckets/${bucketId}/files/${fileId}/view?project=${projectId}`;
+
+      const sizeInBytes = responseData.sizeOriginal || file.size;
+      if (sizeInBytes >= 1048576) {
+        fileSize = `${(sizeInBytes / 1048576).toFixed(1)} MB`;
+      } else {
+        fileSize = `${(sizeInBytes / 1024).toFixed(0)} KB`;
+      }
+    }
+
     // Create the resource
     const newResource = await Resource.create({
       title,
       description,
-      type: type || "notes",
+      type,
       classId,
       faculty: session.user.id,
-      fileName: title.toLowerCase().replace(/\s+/g, "_") + ".pdf",
-      fileSize: "2.1 MB", // Simulated size
-      fileUrl: "/mock/file.pdf",
+      fileName,
+      fileSize,
+      fileUrl,
     });
 
     return NextResponse.json({ success: true, resource: newResource });

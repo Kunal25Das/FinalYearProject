@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   FileText,
   Plus,
@@ -33,6 +33,9 @@ export default function AssignmentsTab() {
   const [myClasses, setMyClasses] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
@@ -102,20 +105,38 @@ export default function AssignmentsTab() {
       return;
     }
 
+    setIsUploadingFile(true);
+
     try {
       const isEditing = !!editingAssignment;
+      const formData = new FormData();
+      if (isEditing) {
+        formData.append("id", editingAssignment.id);
+      }
+      formData.append("title", assignmentForm.title);
+      formData.append("description", assignmentForm.description || "");
+      formData.append("classId", assignmentForm.classId);
+      formData.append("dueDate", assignmentForm.dueDate);
+      formData.append("dueTime", assignmentForm.dueTime);
+      formData.append("totalMarks", String(assignmentForm.totalMarks));
+
+      if (selectedFile) {
+        formData.append("file", selectedFile);
+      } else if (
+        assignmentForm.attachments &&
+        assignmentForm.attachments.length > 0
+      ) {
+        formData.append(
+          "existingAttachments",
+          JSON.stringify(assignmentForm.attachments),
+        );
+      } else {
+        formData.append("existingAttachments", JSON.stringify([]));
+      }
+
       const res = await fetch("/api/faculty/assignments", {
         method: isEditing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: isEditing ? editingAssignment.id : undefined,
-          title: assignmentForm.title,
-          description: assignmentForm.description,
-          classId: assignmentForm.classId,
-          dueDate: assignmentForm.dueDate,
-          dueTime: assignmentForm.dueTime,
-          totalMarks: assignmentForm.totalMarks,
-        }),
+        body: formData,
       });
       const data = await res.json();
       if (data.success) {
@@ -131,12 +152,16 @@ export default function AssignmentsTab() {
           totalMarks: 100,
           attachments: [],
         });
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       } else {
         alert(data.error || "Failed to save assignment");
       }
     } catch (err) {
       console.error(err);
       alert("An error occurred while saving assignment");
+    } finally {
+      setIsUploadingFile(false);
     }
   };
 
@@ -633,14 +658,63 @@ export default function AssignmentsTab() {
             />
           </div>
 
-          <div className="p-4 bg-gray-100 dark:bg-white/5 rounded-lg border-2 border-dashed border-gray-300 dark:border-white/20 text-center cursor-pointer hover:border-purple-400 transition-colors">
-            <FileText className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Drag & drop assignment files or click to upload
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              PDF, DOC, ZIP up to 50MB
-            </p>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-4 rounded-lg border-2 border-dashed text-center cursor-pointer transition-colors ${
+              selectedFile
+                ? "border-green-500/50 bg-green-500/5"
+                : "border-gray-300 dark:border-white/20 hover:border-purple-400 bg-gray-100 dark:bg-white/5"
+            }`}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => setSelectedFile(e.target.files[0] || null)}
+              style={{ display: "none" }}
+            />
+            {selectedFile ? (
+              <div className="flex flex-col items-center">
+                <span className="text-xl">📄</span>
+                <p className="font-medium text-gray-900 dark:text-white mt-1 max-w-[250px] truncate text-sm">
+                  {selectedFile.name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {(selectedFile.size / 1024).toFixed(0)} KB
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="mt-2 text-xs text-red-500 hover:text-red-700 font-medium"
+                >
+                  Remove File
+                </button>
+              </div>
+            ) : assignmentForm.attachments &&
+              assignmentForm.attachments.length > 0 ? (
+              <div className="flex flex-col items-center">
+                <span className="text-xl">📎</span>
+                <p className="font-medium text-purple-600 dark:text-purple-400 mt-1 max-w-[250px] truncate text-sm">
+                  {assignmentForm.attachments[0].name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Existing attachment (Click to replace)
+                </p>
+              </div>
+            ) : (
+              <>
+                <FileText className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Drag & drop assignment files or click to upload
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  PDF, DOC, ZIP up to 50MB
+                </p>
+              </>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -650,6 +724,8 @@ export default function AssignmentsTab() {
               onClick={() => {
                 setShowCreateModal(false);
                 setEditingAssignment(null);
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
                 setAssignmentForm({
                   title: "",
                   description: "",
@@ -660,11 +736,25 @@ export default function AssignmentsTab() {
                   attachments: [],
                 });
               }}
+              disabled={isUploadingFile}
             >
               Cancel
             </Button>
-            <Button className="flex-1" onClick={handleCreateAssignment}>
-              {editingAssignment ? "Update Assignment" : "Create Assignment"}
+            <Button
+              className="flex-1"
+              onClick={handleCreateAssignment}
+              disabled={isUploadingFile}
+            >
+              {isUploadingFile ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Uploading...
+                </>
+              ) : editingAssignment ? (
+                "Update Assignment"
+              ) : (
+                "Create Assignment"
+              )}
             </Button>
           </div>
         </div>
@@ -735,12 +825,28 @@ export default function AssignmentsTab() {
                     )}
                     {submission.status !== "pending" && (
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" className="p-1.5!">
+                        <a
+                          href={submission.attachmentUrl || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        >
                           <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" className="p-1.5!">
+                        </a>
+                        <a
+                          href={
+                            submission.attachmentUrl
+                              ? submission.attachmentUrl.replace(
+                                  "/view?",
+                                  "/download?",
+                                )
+                              : "#"
+                          }
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          download
+                        >
                           <Download className="w-4 h-4" />
-                        </Button>
+                        </a>
                       </div>
                     )}
                     {(submission.status === "submitted" ||

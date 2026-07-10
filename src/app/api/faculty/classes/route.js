@@ -83,21 +83,32 @@ export async function GET() {
           pinned: n.pinned || false,
         }));
 
-        // Aggregate schedule string from loaded timetables
+        // Aggregate schedule string and room from loaded timetables
         const slots = [];
+        const roomsList = [];
         activeSchedules.forEach((sched) => {
           if (sched.batch === cls.batch) {
             sched.scheduleData.forEach((slot) => {
+              const slotFaculty = (slot.faculty || "").toLowerCase().trim();
+              const matchesEmail =
+                session.user.email &&
+                slotFaculty === session.user.email.toLowerCase().trim();
+              const matchesName =
+                slotFaculty.includes(facultyName.toLowerCase()) ||
+                slotFaculty === facultyName.toLowerCase();
+
               if (
                 slot.subject.toLowerCase() === cls.code.toLowerCase() &&
-                (slot.faculty || "")
-                  .toLowerCase()
-                  .includes(facultyName.toLowerCase())
+                (matchesEmail || matchesName)
               ) {
                 // e.g. Mon - 9:00 AM
                 const dayAbbr = slot.day.substring(0, 3);
                 const timeStart = slot.time.split("-")[0].trim();
                 slots.push(`${dayAbbr} ${timeStart}`);
+
+                if (slot.room && slot.room !== "N/A" && slot.room !== "TBD") {
+                  roomsList.push(slot.room);
+                }
               }
             });
           }
@@ -105,7 +116,9 @@ export async function GET() {
 
         const scheduleString =
           slots.length > 0 ? slots.join(", ") : "Not Scheduled Yet";
-        const roomString = cls.room || "Lab/Room TBD";
+        const uniqueRooms = [...new Set(roomsList)];
+        const roomString =
+          uniqueRooms.length > 0 ? uniqueRooms.join(", ") : "Lab/Room TBD";
 
         const studentsCount = await User.countDocuments({
           role: "student",

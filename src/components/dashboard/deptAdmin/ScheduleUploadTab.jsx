@@ -24,6 +24,7 @@ export default function ScheduleUploadTab() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
 
   const [batches, setBatches] = useState([]);
   const semesters = [
@@ -129,6 +130,7 @@ export default function ScheduleUploadTab() {
       formData.append("file", uploadedFile);
       formData.append("batch", selectedBatch);
       formData.append("semester", selectedSemester);
+      formData.append("overwrite", String(overwrite));
 
       const res = await fetch("/api/dept-admin/schedules", {
         method: "POST",
@@ -141,6 +143,7 @@ export default function ScheduleUploadTab() {
         setUploadedFile(null);
         setSelectedBatch("");
         setSelectedSemester("");
+        setOverwrite(false);
       } else {
         alert(data.error || "Failed to upload schedule");
       }
@@ -267,6 +270,23 @@ export default function ScheduleUploadTab() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="mb-6 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="overwrite"
+            checked={overwrite}
+            onChange={(e) => setOverwrite(e.target.checked)}
+            className="w-4 h-4 text-purple-600 border-gray-200 dark:border-white/10 rounded focus:ring-purple-500 cursor-pointer"
+          />
+          <label
+            htmlFor="overwrite"
+            className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+          >
+            Reset/Replace all existing schedules for this semester (Start of
+            Semester mode)
+          </label>
         </div>
 
         {/* File Upload Area */}
