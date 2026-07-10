@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Upload,
   Search,
@@ -31,14 +31,6 @@ export default function ResourcesTab() {
     type: "notes",
   });
 
-  const myClasses = [
-    { id: "all", name: "All Classes" },
-    { id: "1", name: "Data Structures (CS-A 2024)" },
-    { id: "2", name: "Algorithm Design (CS-B 2024)" },
-    { id: "3", name: "Database Systems (CS-A 2023)" },
-    { id: "4", name: "Computer Networks (CS-C 2024)" },
-  ];
-
   const resourceTypes = [
     { value: "all", label: "All Types", icon: "📁" },
     { value: "notes", label: "Lecture Notes", icon: "📝" },
@@ -48,88 +40,28 @@ export default function ResourcesTab() {
     { value: "video", label: "Video Link", icon: "🎥" },
   ];
 
-  const [resources, setResources] = useState([
-    {
-      id: 1,
-      title: "Week 1 - Introduction to Data Structures",
-      type: "notes",
-      classId: "1",
-      className: "Data Structures",
-      date: "Dec 10, 2025",
-      size: "2.4 MB",
-      downloads: 45,
-    },
-    {
-      id: 2,
-      title: "Linked List Implementation",
-      type: "code",
-      classId: "1",
-      className: "Data Structures",
-      date: "Dec 12, 2025",
-      size: "156 KB",
-      downloads: 42,
-    },
-    {
-      id: 3,
-      title: "Sorting Algorithms Overview",
-      type: "slides",
-      classId: "2",
-      className: "Algorithm Design",
-      date: "Dec 8, 2025",
-      size: "5.1 MB",
-      downloads: 52,
-    },
-    {
-      id: 4,
-      title: "Dynamic Programming Examples",
-      type: "code",
-      classId: "2",
-      className: "Algorithm Design",
-      date: "Dec 11, 2025",
-      size: "89 KB",
-      downloads: 48,
-    },
-    {
-      id: 5,
-      title: "SQL Basics Presentation",
-      type: "slides",
-      classId: "3",
-      className: "Database Systems",
-      date: "Dec 5, 2025",
-      size: "3.8 MB",
-      downloads: 38,
-    },
-    {
-      id: 6,
-      title: "Normalization Exercise",
-      type: "assignment",
-      classId: "3",
-      className: "Database Systems",
-      date: "Dec 13, 2025",
-      size: "450 KB",
-      downloads: 40,
-    },
-    {
-      id: 7,
-      title: "Assignment 1 - Arrays and Strings",
-      type: "assignment",
-      classId: "1",
-      className: "Data Structures",
-      date: "Dec 14, 2025",
-      size: "320 KB",
-      downloads: 44,
-    },
-    {
-      id: 8,
-      title: "OSI Model Explained",
-      type: "video",
-      classId: "4",
-      className: "Computer Networks",
-      date: "Dec 9, 2025",
-      size: "Link",
-      downloads: 50,
-    },
-  ]);
+  const [resources, setResources] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadResources() {
+    try {
+      const res = await fetch("/api/faculty/resources");
+      const data = await res.json();
+      if (data.success) {
+        setResources(data.resources);
+        setMyClasses(data.myClasses);
+      }
+    } catch (err) {
+      console.error("Error loading resources:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadResources();
+  }, []);
 
   const filteredResources = resources.filter((resource) => {
     const matchesSearch = resource.title
@@ -147,31 +79,59 @@ export default function ResourcesTab() {
     return found ? found.icon : "📁";
   };
 
-  const handleUpload = () => {
-    if (uploadForm.title && uploadForm.classId) {
-      const targetClass = myClasses.find((c) => c.id === uploadForm.classId);
-      const newResource = {
-        id: Date.now(),
-        title: uploadForm.title,
-        type: uploadForm.type,
-        classId: uploadForm.classId,
-        className: targetClass?.name.split(" (")[0] || "",
-        date: new Date().toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
+  const handleUpload = async () => {
+    if (!uploadForm.title || !uploadForm.classId) {
+      alert("Title and Class are required");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/faculty/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: uploadForm.title,
+          description: uploadForm.description,
+          type: uploadForm.type,
+          classId: uploadForm.classId,
         }),
-        size: "1.2 MB",
-        downloads: 0,
-      };
-      setResources([newResource, ...resources]);
-      setShowUploadModal(false);
-      setUploadForm({ title: "", description: "", classId: "", type: "notes" });
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadResources();
+        setShowUploadModal(false);
+        setUploadForm({
+          title: "",
+          description: "",
+          classId: "",
+          type: "notes",
+        });
+      } else {
+        alert(data.error || "Failed to upload resource");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while uploading resource");
     }
   };
 
-  const handleDelete = (resourceId) => {
-    setResources(resources.filter((r) => r.id !== resourceId));
+  const handleDelete = async (resourceId) => {
+    if (!confirm("Are you sure you want to delete this resource?")) return;
+
+    try {
+      const res = await fetch(`/api/faculty/resources?id=${resourceId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadResources();
+      } else {
+        alert(data.error || "Failed to delete resource");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting resource");
+    }
   };
 
   // Group resources by class
@@ -183,6 +143,14 @@ export default function ResourcesTab() {
     acc[className].push(resource);
     return acc;
   }, {});
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -263,7 +231,7 @@ export default function ResourcesTab() {
                 <option
                   key={cls.id}
                   value={cls.id}
-                  className="bg-white dark:bg-gray-800"
+                  className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
                 >
                   {cls.name}
                 </option>
@@ -278,7 +246,7 @@ export default function ResourcesTab() {
                 <option
                   key={type.value}
                   value={type.value}
-                  className="bg-white dark:bg-gray-800"
+                  className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
                 >
                   {type.icon} {type.label}
                 </option>
@@ -381,7 +349,10 @@ export default function ResourcesTab() {
               }
               className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
-              <option value="" className="bg-white dark:bg-gray-800">
+              <option
+                value=""
+                className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+              >
                 Choose a class...
               </option>
               {myClasses
@@ -390,7 +361,7 @@ export default function ResourcesTab() {
                   <option
                     key={cls.id}
                     value={cls.id}
-                    className="bg-white dark:bg-gray-800"
+                    className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
                   >
                     {cls.name}
                   </option>

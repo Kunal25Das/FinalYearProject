@@ -154,7 +154,7 @@ export default function ScheduleUploadTab() {
 
   const handleDownloadTemplate = () => {
     const csvContent =
-      "data:text/csv;charset=utf-8,Day,Time,Subject Code,Faculty Name/ID,Room Number\nMonday,09:00-10:00,CS101,Dr. John Smith,A101\nMonday,10:00-11:00,CS102,Prof. Sarah Wilson,A102\nTuesday,09:00-10:00,CS201,Dr. Mike Chen,A103";
+      "data:text/csv;charset=utf-8,Day,Time,Subject Code,Faculty Email,Room Number\nMonday,09:00-10:00,CS100,sharma@universe.com,A101\nMonday,10:00-11:00,CS100,sharma@universe.com,A102\nTuesday,09:00-10:00,CS100,sharma@universe.com,A103";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -373,7 +373,7 @@ export default function ScheduleUploadTab() {
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                Faculty Name/ID
+                Faculty Email
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />

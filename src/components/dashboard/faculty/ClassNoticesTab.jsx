@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bell,
   Plus,
@@ -34,64 +34,28 @@ export default function ClassNoticesTab() {
     pinned: false,
   });
 
-  const myClasses = [
-    { id: "all", name: "All Classes" },
-    { id: "1", name: "Data Structures (CS-A 2024)", students: 45 },
-    { id: "2", name: "Algorithm Design (CS-B 2024)", students: 52 },
-    { id: "3", name: "Database Systems (CS-A 2023)", students: 40 },
-    { id: "4", name: "Computer Networks (CS-C 2024)", students: 50 },
-  ];
+  const [notices, setNotices] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [notices, setNotices] = useState([
-    {
-      id: 1,
-      title: "Assignment 1 Deadline Extended",
-      content:
-        "The deadline for Assignment 1 has been extended to December 20, 2025. Please ensure you submit before the new deadline.",
-      classId: "1",
-      className: "Data Structures",
-      priority: "important",
-      pinned: true,
-      date: "Dec 15, 2025",
-      views: 42,
-    },
-    {
-      id: 2,
-      title: "Lab Practical on December 18",
-      content:
-        "Please bring your laptops for the upcoming lab practical. We will be working on SQL queries and database design exercises.",
-      classId: "3",
-      className: "Database Systems",
-      priority: "info",
-      pinned: false,
-      date: "Dec 14, 2025",
-      views: 35,
-    },
-    {
-      id: 3,
-      title: "Class Cancelled - December 19",
-      content:
-        "The Algorithm Design class scheduled for December 19 has been cancelled due to a faculty meeting. The class will be rescheduled.",
-      classId: "2",
-      className: "Algorithm Design",
-      priority: "urgent",
-      pinned: false,
-      date: "Dec 13, 2025",
-      views: 48,
-    },
-    {
-      id: 4,
-      title: "Mid-Semester Exam Schedule",
-      content:
-        "The mid-semester examination for Computer Networks will be held on January 5, 2025. Syllabus: Chapters 1-4.",
-      classId: "4",
-      className: "Computer Networks",
-      priority: "important",
-      pinned: true,
-      date: "Dec 10, 2025",
-      views: 50,
-    },
-  ]);
+  async function loadNotices() {
+    try {
+      const res = await fetch("/api/faculty/notices");
+      const data = await res.json();
+      if (data.success) {
+        setNotices(data.notices);
+        setMyClasses(data.myClasses);
+      }
+    } catch (err) {
+      console.error("Error loading notices:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadNotices();
+  }, []);
 
   const priorityOptions = [
     {
@@ -136,54 +100,44 @@ export default function ClassNoticesTab() {
     return 0;
   });
 
-  const handleCreateNotice = () => {
-    if (noticeForm.title && noticeForm.content && noticeForm.classId) {
-      const targetClass = myClasses.find((c) => c.id === noticeForm.classId);
+  const handleCreateNotice = async () => {
+    if (!noticeForm.title || !noticeForm.content || !noticeForm.classId) {
+      alert("Title, Content, and Class ID are required");
+      return;
+    }
 
-      if (editingNotice) {
-        setNotices(
-          notices.map((n) =>
-            n.id === editingNotice.id
-              ? {
-                  ...n,
-                  title: noticeForm.title,
-                  content: noticeForm.content,
-                  classId: noticeForm.classId,
-                  className: targetClass?.name.split(" (")[0] || "",
-                  priority: noticeForm.priority,
-                  pinned: noticeForm.pinned,
-                }
-              : n,
-          ),
-        );
-      } else {
-        const newNotice = {
-          id: Date.now(),
+    try {
+      const isEditing = !!editingNotice;
+      const res = await fetch("/api/faculty/notices", {
+        method: isEditing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: isEditing ? editingNotice.id : undefined,
           title: noticeForm.title,
           content: noticeForm.content,
           classId: noticeForm.classId,
-          className: targetClass?.name.split(" (")[0] || "",
           priority: noticeForm.priority,
           pinned: noticeForm.pinned,
-          date: new Date().toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          views: 0,
-        };
-        setNotices([newNotice, ...notices]);
-      }
-
-      setShowNoticeModal(false);
-      setEditingNotice(null);
-      setNoticeForm({
-        title: "",
-        content: "",
-        classId: "",
-        priority: "info",
-        pinned: false,
+        }),
       });
+      const data = await res.json();
+      if (data.success) {
+        await loadNotices();
+        setShowNoticeModal(false);
+        setEditingNotice(null);
+        setNoticeForm({
+          title: "",
+          content: "",
+          classId: "",
+          priority: "info",
+          pinned: false,
+        });
+      } else {
+        alert(data.error || "Failed to save notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while saving notice");
     }
   };
 
@@ -199,14 +153,49 @@ export default function ClassNoticesTab() {
     setShowNoticeModal(true);
   };
 
-  const handleDeleteNotice = (noticeId) => {
-    setNotices(notices.filter((n) => n.id !== noticeId));
+  const handleDeleteNotice = async (noticeId) => {
+    if (!confirm("Are you sure you want to archive/delete this notice?"))
+      return;
+
+    try {
+      const res = await fetch(`/api/faculty/notices?id=${noticeId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadNotices();
+      } else {
+        alert(data.error || "Failed to delete notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting notice");
+    }
   };
 
-  const handleTogglePin = (noticeId) => {
-    setNotices(
-      notices.map((n) => (n.id === noticeId ? { ...n, pinned: !n.pinned } : n)),
-    );
+  const handleTogglePin = async (noticeId) => {
+    const notice = notices.find((n) => n.id === noticeId);
+    if (!notice) return;
+
+    try {
+      const res = await fetch("/api/faculty/notices", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: noticeId,
+          pinned: !notice.pinned,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadNotices();
+      } else {
+        alert(data.error || "Failed to toggle pin state");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while pinning notice");
+    }
   };
 
   const getPriorityConfig = (priority) => {
@@ -214,6 +203,14 @@ export default function ClassNoticesTab() {
       priorityOptions.find((p) => p.value === priority) || priorityOptions[0]
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Calendar,
   Clock,
@@ -27,110 +27,28 @@ export default function ScheduleManagerTab() {
   const [newTime, setNewTime] = useState("");
   const [filter, setFilter] = useState("upcoming");
 
-  const [schedules, setSchedules] = useState([
-    {
-      id: 1,
-      subject: "Data Structures",
-      batch: "CS-A 2024",
-      date: "Dec 18, 2025",
-      day: "Wednesday",
-      time: "9:00 AM - 10:00 AM",
-      room: "Room 301",
-      students: 45,
-      status: "scheduled",
-      color: "from-blue-500 to-cyan-500",
-    },
-    {
-      id: 2,
-      subject: "Algorithm Design",
-      batch: "CS-B 2024",
-      date: "Dec 18, 2025",
-      day: "Wednesday",
-      time: "11:00 AM - 12:00 PM",
-      room: "Room 205",
-      students: 52,
-      status: "scheduled",
-      color: "from-purple-500 to-pink-500",
-    },
-    {
-      id: 3,
-      subject: "Database Systems",
-      batch: "CS-A 2023",
-      date: "Dec 18, 2025",
-      day: "Wednesday",
-      time: "2:00 PM - 3:00 PM",
-      room: "Lab 102",
-      students: 40,
-      status: "scheduled",
-      color: "from-green-500 to-emerald-500",
-    },
-    {
-      id: 4,
-      subject: "Data Structures",
-      batch: "CS-A 2024",
-      date: "Dec 19, 2025",
-      day: "Thursday",
-      time: "9:00 AM - 10:00 AM",
-      room: "Room 301",
-      students: 45,
-      status: "cancelled",
-      cancelReason: "Faculty meeting",
-      color: "from-blue-500 to-cyan-500",
-    },
-    {
-      id: 5,
-      subject: "Algorithm Design",
-      batch: "CS-B 2024",
-      date: "Dec 19, 2025",
-      day: "Thursday",
-      time: "11:00 AM - 12:00 PM",
-      room: "Room 205",
-      students: 52,
-      status: "rescheduled",
-      originalDate: "Dec 17, 2025",
-      rescheduleReason: "Lab equipment maintenance",
-      color: "from-purple-500 to-pink-500",
-    },
-    {
-      id: 6,
-      subject: "Computer Networks",
-      batch: "CS-C 2024",
-      date: "Dec 20, 2025",
-      day: "Friday",
-      time: "3:00 PM - 4:00 PM",
-      room: "Room 401",
-      students: 50,
-      status: "scheduled",
-      color: "from-orange-500 to-red-500",
-    },
-  ]);
+  const [schedules, setSchedules] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const history = [
-    {
-      id: 1,
-      action: "Cancelled",
-      subject: "Data Structures",
-      date: "Dec 19, 2025",
-      reason: "Faculty meeting",
-      notifiedAt: "Dec 16, 2025",
-    },
-    {
-      id: 2,
-      action: "Rescheduled",
-      subject: "Algorithm Design",
-      date: "Dec 17 → Dec 19, 2025",
-      reason: "Lab equipment maintenance",
-      notifiedAt: "Dec 15, 2025",
-    },
-    {
-      id: 3,
-      action: "Cancelled",
-      subject: "Database Systems",
-      date: "Dec 10, 2025",
-      reason: "Conference attendance",
-      notifiedAt: "Dec 8, 2025",
-    },
-  ];
+  async function loadSchedules() {
+    try {
+      const res = await fetch("/api/faculty/schedules");
+      const data = await res.json();
+      if (data.success) {
+        setSchedules(data.schedules);
+        setHistory(data.history);
+      }
+    } catch (err) {
+      console.error("Error loading schedules:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadSchedules();
+  }, []);
 
   const filteredSchedules = schedules.filter((schedule) => {
     if (filter === "upcoming") return schedule.status === "scheduled";
@@ -148,38 +66,35 @@ export default function ScheduleManagerTab() {
     setNewTime("");
   };
 
-  const handleSubmitAction = () => {
+  const handleSubmitAction = async () => {
     if (selectedSchedule && reason) {
-      if (actionType === "cancel") {
-        setSchedules(
-          schedules.map((s) =>
-            s.id === selectedSchedule.id
-              ? { ...s, status: "cancelled", cancelReason: reason }
-              : s,
-          ),
-        );
-      } else if (actionType === "reschedule" && newDate && newTime) {
-        setSchedules(
-          schedules.map((s) =>
-            s.id === selectedSchedule.id
-              ? {
-                  ...s,
-                  status: "rescheduled",
-                  originalDate: s.date,
-                  date: new Date(newDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  }),
-                  time: newTime,
-                  rescheduleReason: reason,
-                }
-              : s,
-          ),
-        );
+      try {
+        const res = await fetch("/api/faculty/schedules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            classId: selectedSchedule.classId,
+            actionType,
+            date: selectedSchedule.date,
+            originalTime: selectedSchedule.time,
+            newDate: actionType === "reschedule" ? newDate : null,
+            newTime: actionType === "reschedule" ? newTime : null,
+            reason,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message || "Schedule action completed successfully!");
+          await loadSchedules();
+          setShowActionModal(false);
+          setSelectedSchedule(null);
+        } else {
+          alert(data.error || "Failed to complete schedule action");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("An error occurred while submitting schedule action");
       }
-      setShowActionModal(false);
-      setSelectedSchedule(null);
     }
   };
 
@@ -200,13 +115,21 @@ export default function ScheduleManagerTab() {
       case "rescheduled":
         return (
           <span className="flex items-center gap-1 px-2 py-1 bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-full text-xs font-medium">
-            <Clock className="w-3 h-3" /> Rescheduled
+            <AlertTriangle className="w-3 h-3" /> Rescheduled
           </span>
         );
       default:
         return null;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

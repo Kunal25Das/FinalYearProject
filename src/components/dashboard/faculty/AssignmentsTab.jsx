@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText,
   Plus,
@@ -29,6 +29,11 @@ export default function AssignmentsTab() {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [editingAssignment, setEditingAssignment] = useState(null);
 
+  const [assignments, setAssignments] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
     description: "",
@@ -39,130 +44,42 @@ export default function AssignmentsTab() {
     attachments: [],
   });
 
-  const myClasses = [
-    { id: "all", name: "All Classes" },
-    { id: "1", name: "Data Structures (CS-A 2024)", students: 45 },
-    { id: "2", name: "Algorithm Design (CS-B 2024)", students: 52 },
-    { id: "3", name: "Database Systems (CS-A 2023)", students: 40 },
-    { id: "4", name: "Computer Networks (CS-C 2024)", students: 50 },
-  ];
+  const [gradingSubmission, setGradingSubmission] = useState(null);
+  const [gradeMarks, setGradeMarks] = useState("");
+  const [gradeFeedback, setGradeFeedback] = useState("");
 
-  const [assignments, setAssignments] = useState([
-    {
-      id: 1,
-      title: "Assignment 1: Arrays and Linked Lists",
-      description:
-        "Implement basic operations on arrays and linked lists. Include time complexity analysis.",
-      classId: "1",
-      className: "Data Structures",
-      batch: "CS-A 2024",
-      dueDate: "Dec 20, 2025",
-      dueTime: "11:59 PM",
-      totalMarks: 100,
-      totalStudents: 45,
-      submitted: 38,
-      graded: 25,
-      status: "active",
-      createdAt: "Dec 10, 2025",
-    },
-    {
-      id: 2,
-      title: "Assignment 2: Sorting Algorithms",
-      description:
-        "Compare and implement various sorting algorithms with benchmarks.",
-      classId: "2",
-      className: "Algorithm Design",
-      batch: "CS-B 2024",
-      dueDate: "Dec 22, 2025",
-      dueTime: "11:59 PM",
-      totalMarks: 100,
-      totalStudents: 52,
-      submitted: 20,
-      graded: 0,
-      status: "active",
-      createdAt: "Dec 12, 2025",
-    },
-    {
-      id: 3,
-      title: "Lab Exercise: SQL Queries",
-      description: "Write SQL queries for the given database schema.",
-      classId: "3",
-      className: "Database Systems",
-      batch: "CS-A 2023",
-      dueDate: "Dec 15, 2025",
-      dueTime: "11:59 PM",
-      totalMarks: 50,
-      totalStudents: 40,
-      submitted: 40,
-      graded: 40,
-      status: "completed",
-      createdAt: "Dec 5, 2025",
-    },
-    {
-      id: 4,
-      title: "Assignment 3: Binary Trees",
-      description: "Implement binary tree traversals and BST operations.",
-      classId: "1",
-      className: "Data Structures",
-      batch: "CS-A 2024",
-      dueDate: "Dec 28, 2025",
-      dueTime: "11:59 PM",
-      totalMarks: 100,
-      totalStudents: 45,
-      submitted: 0,
-      graded: 0,
-      status: "active",
-      createdAt: "Dec 16, 2025",
-    },
-  ]);
+  async function loadData() {
+    try {
+      const res = await fetch("/api/faculty/assignments");
+      const data = await res.json();
+      if (data.success) {
+        setAssignments(data.assignments);
+        setMyClasses(data.myClasses);
+      }
+    } catch (err) {
+      console.error("Error loading assignments data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const [submissions] = useState([
-    {
-      id: 1,
-      studentName: "Alice Johnson",
-      studentId: "CS2024001",
-      submittedAt: "Dec 18, 2025 10:30 PM",
-      status: "graded",
-      marks: 85,
-      feedback: "Good work!",
-    },
-    {
-      id: 2,
-      studentName: "Bob Smith",
-      studentId: "CS2024002",
-      submittedAt: "Dec 19, 2025 2:15 PM",
-      status: "graded",
-      marks: 72,
-      feedback: "Needs improvement in complexity analysis",
-    },
-    {
-      id: 3,
-      studentName: "Charlie Brown",
-      studentId: "CS2024003",
-      submittedAt: "Dec 19, 2025 8:45 PM",
-      status: "submitted",
-      marks: null,
-      feedback: null,
-    },
-    {
-      id: 4,
-      studentName: "Diana Prince",
-      studentId: "CS2024004",
-      submittedAt: "Dec 20, 2025 11:30 PM",
-      status: "late",
-      marks: null,
-      feedback: null,
-    },
-    {
-      id: 5,
-      studentName: "Eve Wilson",
-      studentId: "CS2024005",
-      submittedAt: null,
-      status: "pending",
-      marks: null,
-      feedback: null,
-    },
-  ]);
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function loadSubmissions(assignmentId) {
+    try {
+      const res = await fetch(
+        `/api/faculty/assignments/submissions?assignmentId=${assignmentId}`,
+      );
+      const data = await res.json();
+      if (data.success) {
+        setSubmissions(data.submissions);
+      }
+    } catch (err) {
+      console.error("Error loading submissions:", err);
+    }
+  }
 
   const filteredAssignments = assignments.filter((assignment) => {
     const matchesSearch = assignment.title
@@ -175,81 +92,51 @@ export default function AssignmentsTab() {
     return matchesSearch && matchesClass && matchesStatus;
   });
 
-  const handleCreateAssignment = () => {
+  const handleCreateAssignment = async () => {
     if (
-      assignmentForm.title &&
-      assignmentForm.classId &&
-      assignmentForm.dueDate
+      !assignmentForm.title ||
+      !assignmentForm.classId ||
+      !assignmentForm.dueDate
     ) {
-      const targetClass = myClasses.find(
-        (c) => c.id === assignmentForm.classId,
-      );
+      alert("Please fill all required fields");
+      return;
+    }
 
-      if (editingAssignment) {
-        setAssignments(
-          assignments.map((a) =>
-            a.id === editingAssignment.id
-              ? {
-                  ...a,
-                  title: assignmentForm.title,
-                  description: assignmentForm.description,
-                  classId: assignmentForm.classId,
-                  className: targetClass?.name.split(" (")[0] || "",
-                  batch: targetClass?.name.match(/\(([^)]+)\)/)?.[1] || "",
-                  dueDate: new Date(assignmentForm.dueDate).toLocaleDateString(
-                    "en-US",
-                    { month: "short", day: "numeric", year: "numeric" },
-                  ),
-                  dueTime:
-                    assignmentForm.dueTime === "23:59"
-                      ? "11:59 PM"
-                      : assignmentForm.dueTime,
-                  totalMarks: assignmentForm.totalMarks,
-                }
-              : a,
-          ),
-        );
-      } else {
-        const newAssignment = {
-          id: Date.now(),
+    try {
+      const isEditing = !!editingAssignment;
+      const res = await fetch("/api/faculty/assignments", {
+        method: isEditing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: isEditing ? editingAssignment.id : undefined,
           title: assignmentForm.title,
           description: assignmentForm.description,
           classId: assignmentForm.classId,
-          className: targetClass?.name.split(" (")[0] || "",
-          batch: targetClass?.name.match(/\(([^)]+)\)/)?.[1] || "",
-          dueDate: new Date(assignmentForm.dueDate).toLocaleDateString(
-            "en-US",
-            { month: "short", day: "numeric", year: "numeric" },
-          ),
-          dueTime:
-            assignmentForm.dueTime === "23:59"
-              ? "11:59 PM"
-              : assignmentForm.dueTime,
+          dueDate: assignmentForm.dueDate,
+          dueTime: assignmentForm.dueTime,
           totalMarks: assignmentForm.totalMarks,
-          totalStudents: targetClass?.students || 0,
-          submitted: 0,
-          graded: 0,
-          status: "active",
-          createdAt: new Date().toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-        };
-        setAssignments([newAssignment, ...assignments]);
-      }
-
-      setShowCreateModal(false);
-      setEditingAssignment(null);
-      setAssignmentForm({
-        title: "",
-        description: "",
-        classId: "",
-        dueDate: "",
-        dueTime: "23:59",
-        totalMarks: 100,
-        attachments: [],
+        }),
       });
+      const data = await res.json();
+      if (data.success) {
+        await loadData();
+        setShowCreateModal(false);
+        setEditingAssignment(null);
+        setAssignmentForm({
+          title: "",
+          description: "",
+          classId: "",
+          dueDate: "",
+          dueTime: "23:59",
+          totalMarks: 100,
+          attachments: [],
+        });
+      } else {
+        alert(data.error || "Failed to save assignment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while saving assignment");
     }
   };
 
@@ -259,21 +146,67 @@ export default function AssignmentsTab() {
       title: assignment.title,
       description: assignment.description,
       classId: assignment.classId,
-      dueDate: "",
-      dueTime: "23:59",
+      dueDate: assignment.rawDueDate || "",
+      dueTime: assignment.dueTime,
       totalMarks: assignment.totalMarks,
       attachments: [],
     });
     setShowCreateModal(true);
   };
 
-  const handleDeleteAssignment = (assignmentId) => {
-    setAssignments(assignments.filter((a) => a.id !== assignmentId));
+  const handleDeleteAssignment = async (assignmentId) => {
+    if (!confirm("Are you sure you want to delete this assignment?")) return;
+
+    try {
+      const res = await fetch(`/api/faculty/assignments?id=${assignmentId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadData();
+      } else {
+        alert(data.error || "Failed to delete assignment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting assignment");
+    }
   };
 
-  const handleViewSubmissions = (assignment) => {
+  const handleViewSubmissions = async (assignment) => {
     setSelectedAssignment(assignment);
+    await loadSubmissions(assignment.id);
     setShowSubmissionsModal(true);
+  };
+
+  const handleSaveGrade = async () => {
+    if (!gradingSubmission || gradeMarks === "") return;
+
+    try {
+      const res = await fetch("/api/faculty/assignments/submissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissionId: gradingSubmission.id,
+          marks: parseInt(gradeMarks),
+          feedback: gradeFeedback,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Submission graded successfully!");
+        await loadSubmissions(selectedAssignment.id);
+        await loadData();
+        setGradingSubmission(null);
+        setGradeMarks("");
+        setGradeFeedback("");
+      } else {
+        alert(data.error || "Failed to save grade");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while grading");
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -331,6 +264,14 @@ export default function AssignmentsTab() {
         return null;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -807,6 +748,11 @@ export default function AssignmentsTab() {
                       <Button
                         variant="outline"
                         className="py-1! px-2! text-sm!"
+                        onClick={() => {
+                          setGradingSubmission(submission);
+                          setGradeMarks(submission.marks?.toString() || "");
+                          setGradeFeedback(submission.feedback || "");
+                        }}
                       >
                         Grade
                       </Button>
@@ -831,6 +777,63 @@ export default function AssignmentsTab() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Grade Submission Modal */}
+      <Modal
+        isOpen={!!gradingSubmission}
+        onClose={() => setGradingSubmission(null)}
+        title={`Grade: ${gradingSubmission?.studentName || ""}`}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Submit marks and feedback for this assignment submission.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Marks (Max {selectedAssignment?.totalMarks || 100})
+            </label>
+            <Input
+              type="number"
+              min="0"
+              max={selectedAssignment?.totalMarks || 100}
+              placeholder="Enter marks"
+              value={gradeMarks}
+              onChange={(e) => setGradeMarks(e.target.value)}
+              className="bg-white/5 dark:bg-white/5 dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Feedback / Comments
+            </label>
+            <textarea
+              placeholder="e.g. Well researched, good format..."
+              value={gradeFeedback}
+              onChange={(e) => setGradeFeedback(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="ghost"
+              className="flex-1"
+              onClick={() => setGradingSubmission(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              onClick={handleSaveGrade}
+            >
+              Save Grade
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

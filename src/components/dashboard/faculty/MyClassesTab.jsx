@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Users,
@@ -22,6 +22,8 @@ import Modal from "@/components/ui/Modal";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function MyClassesTab() {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -33,125 +35,35 @@ export default function MyClassesTab() {
   });
   const [scheduleAction, setScheduleAction] = useState("cancel");
   const [scheduleReason, setScheduleReason] = useState("");
+  const [targetDate, setTargetDate] = useState("");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
 
-  const [classes, setClasses] = useState([
-    {
-      id: 1,
-      subject: "Data Structures",
-      code: "CS301",
-      batch: "CS-A 2024",
-      students: 45,
-      schedule: "Mon, Wed, Fri - 9:00 AM",
-      room: "Room 301",
-      color: "from-blue-500 to-cyan-500",
-      resources: [
-        {
-          id: 1,
-          title: "Week 1 - Introduction to DS",
-          type: "notes",
-          date: "Dec 10, 2025",
-          downloads: 38,
-        },
-        {
-          id: 2,
-          title: "Linked List Implementation",
-          type: "code",
-          date: "Dec 12, 2025",
-          downloads: 42,
-        },
-        {
-          id: 3,
-          title: "Assignment 1 - Arrays",
-          type: "assignment",
-          date: "Dec 14, 2025",
-          downloads: 45,
-        },
-      ],
-      notices: [
-        {
-          id: 1,
-          title: "Assignment deadline extended to Dec 20",
-          date: "Dec 15, 2025",
-          priority: "important",
-        },
-      ],
-    },
-    {
-      id: 2,
-      subject: "Algorithm Design",
-      code: "CS401",
-      batch: "CS-B 2024",
-      students: 52,
-      schedule: "Tue, Thu - 11:00 AM",
-      room: "Room 205",
-      color: "from-purple-500 to-pink-500",
-      resources: [
-        {
-          id: 1,
-          title: "Sorting Algorithms Overview",
-          type: "notes",
-          date: "Dec 8, 2025",
-          downloads: 48,
-        },
-        {
-          id: 2,
-          title: "Dynamic Programming Examples",
-          type: "code",
-          date: "Dec 11, 2025",
-          downloads: 50,
-        },
-      ],
-      notices: [],
-    },
-    {
-      id: 3,
-      subject: "Database Systems",
-      code: "CS302",
-      batch: "CS-A 2023",
-      students: 40,
-      schedule: "Mon, Wed - 2:00 PM",
-      room: "Lab 102",
-      color: "from-green-500 to-emerald-500",
-      resources: [
-        {
-          id: 1,
-          title: "SQL Basics Presentation",
-          type: "slides",
-          date: "Dec 5, 2025",
-          downloads: 35,
-        },
-        {
-          id: 2,
-          title: "Normalization Exercise",
-          type: "assignment",
-          date: "Dec 13, 2025",
-          downloads: 40,
-        },
-      ],
-      notices: [
-        {
-          id: 1,
-          title: "Lab practical on Dec 18 - Bring laptops",
-          date: "Dec 14, 2025",
-          priority: "info",
-        },
-      ],
-    },
-    {
-      id: 4,
-      subject: "Computer Networks",
-      code: "CS403",
-      batch: "CS-C 2024",
-      students: 50,
-      schedule: "Fri - 3:00 PM",
-      room: "Room 401",
-      color: "from-orange-500 to-red-500",
-      resources: [],
-      notices: [],
-    },
-  ]);
+  async function loadClasses() {
+    try {
+      const res = await fetch("/api/faculty/classes");
+      const data = await res.json();
+      if (data.success) {
+        setClasses(data.classes);
+        if (selectedClass) {
+          const updatedSelected = data.classes.find(
+            (c) => c.id === selectedClass.id,
+          );
+          if (updatedSelected) {
+            setSelectedClass(updatedSelected);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error loading faculty classes:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadClasses();
+  }, []);
 
   const resourceTypes = [
     { value: "notes", label: "Lecture Notes", icon: "📝" },
@@ -162,58 +74,104 @@ export default function MyClassesTab() {
     { value: "other", label: "Other", icon: "📁" },
   ];
 
-  const handleShareResource = () => {
-    if (selectedClass && resourceForm.title) {
-      const newResource = {
-        id: Date.now(),
-        title: resourceForm.title,
-        type: resourceForm.type,
-        date: new Date().toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
+  const handleShareResource = async () => {
+    if (!selectedClass || !resourceForm.title) return;
+
+    try {
+      const res = await fetch("/api/faculty/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: resourceForm.title,
+          description: resourceForm.description,
+          type: resourceForm.type,
+          classId: selectedClass.id,
         }),
-        downloads: 0,
-      };
-
-      setClasses(
-        classes.map((cls) =>
-          cls.id === selectedClass.id
-            ? { ...cls, resources: [...cls.resources, newResource] }
-            : cls,
-        ),
-      );
-
-      setShowResourceModal(false);
-      setResourceForm({ title: "", description: "", type: "notes" });
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadClasses();
+        setShowResourceModal(false);
+        setResourceForm({ title: "", description: "", type: "notes" });
+      } else {
+        alert(data.error || "Failed to share resource");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while sharing the resource");
     }
   };
 
-  const handleScheduleAction = () => {
-    // In real app, this would send notification to students
-    setShowScheduleModal(false);
-    setScheduleReason("");
-    setNewDate("");
-    setNewTime("");
+  const handleScheduleAction = async () => {
+    if (!selectedClass || !targetDate) {
+      alert("Target class session date is required");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/faculty/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: selectedClass.id,
+          actionType: scheduleAction,
+          date: targetDate,
+          originalTime:
+            selectedClass.schedule.split(",")[0] || "09:00 AM - 10:00 AM",
+          newDate: scheduleAction === "reschedule" ? newDate : null,
+          newTime: scheduleAction === "reschedule" ? newTime : null,
+          reason: scheduleReason,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || "Schedule action completed successfully!");
+        await loadClasses();
+        setShowScheduleModal(false);
+        setScheduleReason("");
+        setTargetDate("");
+        setNewDate("");
+        setNewTime("");
+      } else {
+        alert(data.error || "Failed to complete schedule action");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while submitting schedule action");
+    }
   };
 
-  const handleDeleteResource = (classId, resourceId) => {
-    setClasses(
-      classes.map((cls) =>
-        cls.id === classId
-          ? {
-              ...cls,
-              resources: cls.resources.filter((r) => r.id !== resourceId),
-            }
-          : cls,
-      ),
-    );
+  const handleDeleteResource = async (classId, resourceId) => {
+    if (!confirm("Are you sure you want to delete this resource?")) return;
+
+    try {
+      const res = await fetch(`/api/faculty/classes?id=${resourceId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadClasses();
+      } else {
+        alert(data.error || "Failed to delete resource");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting resource");
+    }
   };
 
   const getResourceIcon = (type) => {
     const found = resourceTypes.find((r) => r.value === type);
     return found ? found.icon : "📁";
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -607,6 +565,19 @@ export default function MyClassesTab() {
                 </p>
               </button>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Class Session Date to Cancel/Reschedule *
+            </label>
+            <Input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              required
+              className="bg-white/5 dark:bg-white/5 dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
+            />
           </div>
 
           {scheduleAction === "reschedule" && (

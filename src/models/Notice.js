@@ -11,11 +11,12 @@ const NoticeSchema = new mongoose.Schema(
     },
     audience: {
       type: String,
-      enum: ["All", "Students", "Faculty", "Staff", "Department"],
+      enum: ["All", "Students", "Faculty", "Staff", "Department", "Class"],
       default: "All",
     },
     department: { type: String }, // optional, for department-specific notices
     batch: { type: String }, // optional, for batch-specific notices
+    classId: { type: mongoose.Schema.Types.ObjectId, ref: "Class" }, // optional, for class-specific notices
     pinned: { type: Boolean, default: false },
     publishedAt: { type: Date, default: Date.now },
     expiresAt: { type: Date },

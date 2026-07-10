@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Users,
@@ -14,14 +15,36 @@ import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
 export default function FacultyHomeTab({ setActiveTab }) {
-  const facultyData = {
-    name: "Dr. Test Faculty",
-    department: "Computer Science",
-    totalClasses: 5,
-    totalStudents: 187,
-    upcomingClasses: 3,
-    pendingNotices: 2,
-  };
+  const [loading, setLoading] = useState(true);
+  const [facultyData, setFacultyData] = useState({
+    name: "Loading...",
+    department: "",
+    totalClasses: 0,
+    totalStudents: 0,
+    upcomingClasses: 0,
+    pendingNotices: 0,
+  });
+  const [todaysSchedule, setTodaysSchedule] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await fetch("/api/faculty/stats");
+        const data = await res.json();
+        if (data.success) {
+          setFacultyData(data.faculty);
+          setTodaysSchedule(data.todaysSchedule);
+          setRecentActivities(data.recentActivities);
+        }
+      } catch (err) {
+        console.error("Error loading faculty dashboard stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
+  }, []);
 
   const quickStats = [
     {
@@ -54,59 +77,13 @@ export default function FacultyHomeTab({ setActiveTab }) {
     },
   ];
 
-  const todaysSchedule = [
-    {
-      id: 1,
-      subject: "Data Structures",
-      batch: "CS-A 2024",
-      time: "9:00 AM - 10:00 AM",
-      room: "Room 301",
-      status: "completed",
-    },
-    {
-      id: 2,
-      subject: "Algorithm Design",
-      batch: "CS-B 2024",
-      time: "11:00 AM - 12:00 PM",
-      room: "Room 205",
-      status: "ongoing",
-    },
-    {
-      id: 3,
-      subject: "Database Systems",
-      batch: "CS-A 2023",
-      time: "2:00 PM - 3:00 PM",
-      room: "Lab 102",
-      status: "upcoming",
-    },
-  ];
-
-  const recentActivities = [
-    {
-      id: 1,
-      text: "Shared lecture notes for Data Structures",
-      time: "2 hours ago",
-      type: "resource",
-    },
-    {
-      id: 2,
-      text: "Posted notice: Assignment deadline extended",
-      time: "1 day ago",
-      type: "notice",
-    },
-    {
-      id: 3,
-      text: "Cancelled class: Algorithm Design (Dec 20)",
-      time: "2 days ago",
-      type: "cancel",
-    },
-    {
-      id: 4,
-      text: "Uploaded quiz materials for Database Systems",
-      time: "3 days ago",
-      type: "resource",
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
