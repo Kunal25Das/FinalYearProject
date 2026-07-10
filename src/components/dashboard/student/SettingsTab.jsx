@@ -368,7 +368,7 @@ export default function SettingsTab() {
               value={defaultMaxLoad}
               onChange={(e) => setDefaultMaxLoad(e.target.value)}
               required
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500"
+              className="bg-white/5 dark:bg-white/5 dark:border-white/10 dark:text-white placeholder:text-gray-500 focus:border-purple-500"
             />
 
             {loadError && (
