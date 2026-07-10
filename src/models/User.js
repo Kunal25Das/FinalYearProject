@@ -30,6 +30,12 @@ const UserSchema = new mongoose.Schema(
     isApproved: { type: Boolean, default: true }, // For college-admin, must be approved by super-admin
     requiresPasswordUpdate: { type: Boolean, default: false }, // Force change password on first login
     isDisabled: { type: Boolean, default: false },
+    designation: { type: String },
+    qualification: { type: String },
+    experience: { type: String },
+    specialization: [{ type: String }],
+    publications: { type: Number, default: 0 },
+    maxLoad: { type: Number, default: 16 },
   },
   { timestamps: true },
 );

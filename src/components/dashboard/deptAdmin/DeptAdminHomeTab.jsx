@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   BookOpen,
@@ -17,14 +17,46 @@ import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
 export default function DeptAdminHomeTab({ setActiveTab }) {
-  const [department] = useState({
-    name: "Computer Science & Engineering",
-    code: "CSE",
-    totalFaculty: 24,
-    totalStudents: 480,
-    totalClasses: 16,
-    batches: 4,
+  const [loading, setLoading] = useState(true);
+  const [department, setDepartment] = useState({
+    name: "Loading...",
+    code: "",
+    totalFaculty: 0,
+    totalStudents: 0,
+    totalClasses: 0,
+    batches: 0,
   });
+  const [recentNotices, setRecentNotices] = useState([]);
+  const [pendingActions, setPendingActions] = useState([]);
+  const [todaySchedule, setTodaySchedule] = useState([]);
+
+  useEffect(() => {
+    async function getStats() {
+      try {
+        const res = await fetch("/api/dept-admin/stats");
+        const data = await res.json();
+        if (data.success) {
+          setDepartment(data.department);
+          setRecentNotices(data.recentNotices);
+          setPendingActions(data.pendingActions);
+          setTodaySchedule(data.todaySchedule);
+        }
+      } catch (error) {
+        console.error("Failed to load department stats", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    getStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const stats = [
     {
@@ -32,81 +64,28 @@ export default function DeptAdminHomeTab({ setActiveTab }) {
       value: department.totalFaculty,
       icon: Users,
       color: "from-blue-600 to-cyan-600",
-      change: "+2 this semester",
+      change: "Active in department",
     },
     {
       label: "Total Students",
       value: department.totalStudents,
       icon: GraduationCap,
       color: "from-purple-600 to-pink-600",
-      change: "120 per batch",
+      change: "Enrolled in department",
     },
     {
       label: "Active Classes",
       value: department.totalClasses,
       icon: BookOpen,
       color: "from-orange-600 to-red-600",
-      change: "4 per batch",
+      change: "Across all batches",
     },
     {
       label: "Batches",
       value: department.batches,
       icon: Calendar,
       color: "from-green-600 to-emerald-600",
-      change: "2021-2024",
-    },
-  ];
-
-  const recentNotices = [
-    {
-      id: 1,
-      title: "Mid-Semester Exam Schedule Released",
-      date: "Dec 16, 2025",
-      priority: "high",
-    },
-    {
-      id: 2,
-      title: "Faculty Meeting - December 20th",
-      date: "Dec 15, 2025",
-      priority: "medium",
-    },
-    {
-      id: 3,
-      title: "Lab Equipment Maintenance Notice",
-      date: "Dec 14, 2025",
-      priority: "low",
-    },
-  ];
-
-  const pendingActions = [
-    {
-      id: 1,
-      title: "Assign faculty to CS401 - Computer Networks",
-      type: "assignment",
-      urgent: true,
-    },
-    {
-      id: 2,
-      title: "Review schedule for Batch 2024",
-      type: "schedule",
-      urgent: false,
-    },
-    {
-      id: 3,
-      title: "Approve leave request - Dr. Smith",
-      type: "approval",
-      urgent: true,
-    },
-  ];
-
-  const todaySchedule = [
-    { time: "09:00 AM", event: "HOD Meeting", location: "Admin Block" },
-    { time: "11:00 AM", event: "Faculty Review", location: "Conference Room" },
-    { time: "02:00 PM", event: "Student Grievance", location: "HOD Office" },
-    {
-      time: "04:00 PM",
-      event: "Curriculum Committee",
-      location: "Meeting Hall",
+      change: "Active academic years",
     },
   ];
 

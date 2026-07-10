@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   Search,
@@ -31,125 +31,33 @@ export default function DeptFacultyTab() {
     { id: "assistant", name: "Assistant Professor" },
   ];
 
-  const [facultyList] = useState([
-    {
-      id: 1,
-      name: "Dr. John Smith",
-      designation: "Professor",
-      designationId: "professor",
-      email: "john.smith@university.edu",
-      phone: "+91 98765 43210",
-      specialization: ["Computer Networks", "Cyber Security"],
-      qualification: "Ph.D. in Computer Science, MIT",
-      experience: "15 years",
-      currentLoad: 12,
-      maxLoad: 16,
-      assignedClasses: [
-        { code: "CS302", name: "Computer Networks", batch: "2022" },
-        { code: "CS401", name: "Network Security", batch: "2021" },
-      ],
-      publications: 45,
-      joinedDate: "2010",
-      avatar: null,
-    },
-    {
-      id: 2,
-      name: "Prof. Sarah Wilson",
-      designation: "Associate Professor",
-      designationId: "associate",
-      email: "sarah.wilson@university.edu",
-      phone: "+91 98765 43211",
-      specialization: ["Data Science", "Machine Learning"],
-      qualification: "Ph.D. in Data Science, Stanford",
-      experience: "10 years",
-      currentLoad: 14,
-      maxLoad: 16,
-      assignedClasses: [
-        { code: "CS102", name: "Digital Logic Design", batch: "2024" },
-        { code: "CS303", name: "Data Mining", batch: "2022" },
-      ],
-      publications: 32,
-      joinedDate: "2015",
-      avatar: null,
-    },
-    {
-      id: 3,
-      name: "Dr. Mike Chen",
-      designation: "Assistant Professor",
-      designationId: "assistant",
-      email: "mike.chen@university.edu",
-      phone: "+91 98765 43212",
-      specialization: ["Algorithms", "Data Structures"],
-      qualification: "Ph.D. in Computer Science, CMU",
-      experience: "6 years",
-      currentLoad: 10,
-      maxLoad: 14,
-      assignedClasses: [
-        { code: "CS201", name: "Data Structures", batch: "2023" },
-      ],
-      publications: 18,
-      joinedDate: "2019",
-      avatar: null,
-    },
-    {
-      id: 4,
-      name: "Prof. Emily Brown",
-      designation: "Associate Professor",
-      designationId: "associate",
-      email: "emily.brown@university.edu",
-      phone: "+91 98765 43213",
-      specialization: ["Object-Oriented Programming", "Software Engineering"],
-      qualification: "Ph.D. in Software Engineering, UC Berkeley",
-      experience: "12 years",
-      currentLoad: 8,
-      maxLoad: 14,
-      assignedClasses: [
-        { code: "CS202", name: "Object Oriented Programming", batch: "2023" },
-      ],
-      publications: 28,
-      joinedDate: "2013",
-      avatar: null,
-    },
-    {
-      id: 5,
-      name: "Dr. Alex Kumar",
-      designation: "Professor",
-      designationId: "professor",
-      email: "alex.kumar@university.edu",
-      phone: "+91 98765 43214",
-      specialization: ["Artificial Intelligence", "Deep Learning"],
-      qualification: "Ph.D. in AI, IIT Bombay",
-      experience: "18 years",
-      currentLoad: 12,
-      maxLoad: 16,
-      assignedClasses: [
-        { code: "CS401", name: "Machine Learning", batch: "2021" },
-        { code: "CS402", name: "Deep Learning", batch: "2021" },
-      ],
-      publications: 67,
-      joinedDate: "2007",
-      avatar: null,
-    },
-    {
-      id: 6,
-      name: "Dr. Lisa Park",
-      designation: "Assistant Professor",
-      designationId: "assistant",
-      email: "lisa.park@university.edu",
-      phone: "+91 98765 43215",
-      specialization: ["Database Systems", "Big Data"],
-      qualification: "Ph.D. in Information Systems, NUS",
-      experience: "4 years",
-      currentLoad: 6,
-      maxLoad: 14,
-      assignedClasses: [
-        { code: "CS301", name: "Database Management", batch: "2022" },
-      ],
-      publications: 12,
-      joinedDate: "2021",
-      avatar: null,
-    },
-  ]);
+  const [facultyList, setFacultyList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadFaculty() {
+      try {
+        const res = await fetch("/api/dept-admin/faculty");
+        const data = await res.json();
+        if (data.success) {
+          setFacultyList(data.faculty);
+        }
+      } catch (err) {
+        console.error("Error loading faculty:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFaculty();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const filteredFaculty = facultyList.filter((f) => {
     const matchesSearch =

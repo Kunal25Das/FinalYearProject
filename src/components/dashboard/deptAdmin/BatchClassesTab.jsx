@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BookOpen,
   Plus,
@@ -42,96 +42,25 @@ export default function BatchClassesTab() {
     { id: "2021", name: "Batch 2021 (4th Year)" },
   ];
 
-  const [classes, setClasses] = useState([
-    {
-      id: 1,
-      code: "CS101",
-      name: "Introduction to Programming",
-      batch: "2024",
-      credits: 4,
-      type: "theory",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. John Smith",
-      students: 120,
-    },
-    {
-      id: 2,
-      code: "CS102",
-      name: "Digital Logic Design",
-      batch: "2024",
-      credits: 3,
-      type: "theory",
-      hoursPerWeek: 3,
-      assignedFaculty: "Prof. Sarah Wilson",
-      students: 120,
-    },
-    {
-      id: 3,
-      code: "CS201",
-      name: "Data Structures",
-      batch: "2023",
-      credits: 4,
-      type: "theory",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. Mike Chen",
-      students: 115,
-    },
-    {
-      id: 4,
-      code: "CS202",
-      name: "Object Oriented Programming",
-      batch: "2023",
-      credits: 4,
-      type: "lab",
-      hoursPerWeek: 6,
-      assignedFaculty: "Prof. Emily Brown",
-      students: 115,
-    },
-    {
-      id: 5,
-      code: "CS301",
-      name: "Database Management Systems",
-      batch: "2022",
-      credits: 4,
-      type: "theory",
-      hoursPerWeek: 4,
-      assignedFaculty: null,
-      students: 110,
-    },
-    {
-      id: 6,
-      code: "CS302",
-      name: "Computer Networks",
-      batch: "2022",
-      credits: 4,
-      type: "theory",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. John Smith",
-      students: 110,
-    },
-    {
-      id: 7,
-      code: "CS401",
-      name: "Machine Learning",
-      batch: "2021",
-      credits: 4,
-      type: "theory",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. Alex Kumar",
-      students: 105,
-    },
-    {
-      id: 8,
-      code: "CS402",
-      name: "Cloud Computing",
-      batch: "2021",
-      credits: 3,
-      type: "lab",
-      hoursPerWeek: 4,
-      assignedFaculty: null,
-      students: 105,
-    },
-  ]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadClasses() {
+      try {
+        const res = await fetch("/api/dept-admin/classes");
+        const data = await res.json();
+        if (data.success) {
+          setClasses(data.classes);
+        }
+      } catch (err) {
+        console.error("Error loading classes:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadClasses();
+  }, []);
 
   const filteredClasses = classes.filter((cls) => {
     const matchesSearch =
@@ -141,41 +70,88 @@ export default function BatchClassesTab() {
     return matchesSearch && matchesBatch;
   });
 
-  const handleAddClass = () => {
-    const newClass = {
-      id: classes.length + 1,
-      ...formData,
-      credits: parseInt(formData.credits),
-      hoursPerWeek: parseInt(formData.hoursPerWeek),
-      assignedFaculty: null,
-      students: 0,
-    };
-    setClasses([...classes, newClass]);
-    setShowAddModal(false);
-    resetForm();
+  const handleAddClass = async () => {
+    try {
+      const res = await fetch("/api/dept-admin/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: formData.code,
+          name: formData.name,
+          batch: formData.batch,
+          credits: parseInt(formData.credits) || 3,
+          type: formData.type,
+          hoursPerWeek: parseInt(formData.hoursPerWeek) || 3,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh classes list
+        const refreshRes = await fetch("/api/dept-admin/classes");
+        const refreshData = await refreshRes.json();
+        if (refreshData.success) {
+          setClasses(refreshData.classes);
+        }
+        setShowAddModal(false);
+        resetForm();
+      } else {
+        alert(data.error || "Failed to add class");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while adding the class");
+    }
   };
 
-  const handleEditClass = () => {
-    setClasses(
-      classes.map((cls) =>
-        cls.id === selectedClass.id
-          ? {
-              ...cls,
-              ...formData,
-              credits: parseInt(formData.credits),
-              hoursPerWeek: parseInt(formData.hoursPerWeek),
-            }
-          : cls,
-      ),
-    );
-    setShowEditModal(false);
-    setSelectedClass(null);
-    resetForm();
+  const handleEditClass = async () => {
+    try {
+      const res = await fetch("/api/dept-admin/classes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedClass.id,
+          code: formData.code,
+          name: formData.name,
+          batch: formData.batch,
+          credits: parseInt(formData.credits) || 3,
+          type: formData.type,
+          hoursPerWeek: parseInt(formData.hoursPerWeek) || 3,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClasses(
+          classes.map((cls) =>
+            cls.id === selectedClass.id ? data.class : cls,
+          ),
+        );
+        setShowEditModal(false);
+        setSelectedClass(null);
+        resetForm();
+      } else {
+        alert(data.error || "Failed to update class");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while updating the class");
+    }
   };
 
-  const handleDeleteClass = (id) => {
-    if (confirm("Are you sure you want to delete this class?")) {
-      setClasses(classes.filter((cls) => cls.id !== id));
+  const handleDeleteClass = async (id) => {
+    if (!confirm("Are you sure you want to delete this class?")) return;
+    try {
+      const res = await fetch(`/api/dept-admin/classes?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClasses(classes.filter((cls) => cls.id !== id));
+      } else {
+        alert(data.error || "Failed to delete class");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting the class");
     }
   };
 
@@ -208,6 +184,14 @@ export default function BatchClassesTab() {
     assigned: classes.filter((c) => c.assignedFaculty).length,
     unassigned: classes.filter((c) => !c.assignedFaculty).length,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

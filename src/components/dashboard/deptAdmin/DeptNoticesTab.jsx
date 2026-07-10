@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bell,
   Plus,
@@ -58,109 +58,69 @@ export default function DeptNoticesTab() {
     { id: "2021", name: "Batch 2021" },
   ];
 
-  const [notices, setNotices] = useState([
-    {
-      id: 1,
-      title: "Mid-Semester Examination Schedule",
-      content:
-        "The mid-semester examinations for all batches will commence from December 20, 2025. Detailed timetable has been uploaded to the portal. Students are advised to check their respective schedules and prepare accordingly. Any conflicts should be reported to the department office within 48 hours.",
-      priority: "high",
-      targetAudience: "all",
-      targetBatch: null,
-      createdAt: "Dec 16, 2025 10:30 AM",
-      createdBy: "Dr. HOD",
-      views: 245,
-      status: "published",
-    },
-    {
-      id: 2,
-      title: "Faculty Meeting - Curriculum Review",
-      content:
-        "All faculty members are requested to attend the curriculum review meeting scheduled for December 20, 2025, at 11:00 AM in the Conference Room. Please bring your syllabus suggestions and feedback from the current semester.",
-      priority: "high",
-      targetAudience: "faculty",
-      targetBatch: null,
-      createdAt: "Dec 15, 2025 02:15 PM",
-      createdBy: "Dr. HOD",
-      views: 18,
-      status: "published",
-    },
-    {
-      id: 3,
-      title: "Lab Equipment Maintenance",
-      content:
-        "Computer Lab 2 will be under maintenance on December 18-19, 2025. All scheduled lab sessions will be moved to Lab 3. Please check the updated schedule on the department portal.",
-      priority: "medium",
-      targetAudience: "all",
-      targetBatch: null,
-      createdAt: "Dec 14, 2025 09:00 AM",
-      createdBy: "Dr. HOD",
-      views: 156,
-      status: "published",
-    },
-    {
-      id: 4,
-      title: "Project Submission Deadline Extended",
-      content:
-        "The deadline for final year project submission has been extended to January 15, 2026. Students should ensure all documentation is complete before submission.",
-      priority: "medium",
-      targetAudience: "batch",
-      targetBatch: "2021",
-      createdAt: "Dec 13, 2025 04:30 PM",
-      createdBy: "Dr. HOD",
-      views: 89,
-      status: "published",
-    },
-    {
-      id: 5,
-      title: "Holiday Notice - Christmas",
-      content:
-        "The department will remain closed from December 24-26, 2025, on account of Christmas holidays. Regular classes will resume from December 27, 2025.",
-      priority: "low",
-      targetAudience: "all",
-      targetBatch: null,
-      createdAt: "Dec 12, 2025 11:00 AM",
-      createdBy: "Dr. HOD",
-      views: 312,
-      status: "published",
-    },
-  ]);
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredNotices = notices.filter((notice) => {
-    const matchesSearch =
-      notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      notice.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPriority =
-      priorityFilter === "all" || notice.priority === priorityFilter;
-    return matchesSearch && matchesPriority;
-  });
+  useEffect(() => {
+    async function loadNotices() {
+      try {
+        const res = await fetch("/api/dept-admin/notices");
+        const data = await res.json();
+        if (data.success) {
+          setNotices(data.notices);
+        }
+      } catch (err) {
+        console.error("Failed to load notices:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadNotices();
+  }, []);
 
-  const handleCreateNotice = () => {
-    const newNotice = {
-      id: notices.length + 1,
-      ...formData,
-      targetBatch:
-        formData.targetAudience === "batch" ? formData.targetBatch : null,
-      createdAt: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-      createdBy: "Dr. HOD",
-      views: 0,
-      status: "published",
-    };
-
-    setNotices([newNotice, ...notices]);
-    setShowCreateModal(false);
-    resetForm();
+  const handleCreateNotice = async () => {
+    try {
+      const res = await fetch("/api/dept-admin/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.title,
+          content: formData.content,
+          priority: formData.priority,
+          targetAudience: formData.targetAudience,
+          targetBatch:
+            formData.targetAudience === "batch" ? formData.targetBatch : null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotices([data.notice, ...notices]);
+        setShowCreateModal(false);
+        resetForm();
+      } else {
+        alert(data.error || "Failed to create notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while publishing the notice");
+    }
   };
 
-  const handleDeleteNotice = (id) => {
-    if (confirm("Are you sure you want to delete this notice?")) {
-      setNotices(notices.filter((n) => n.id !== id));
+  const handleDeleteNotice = async (id) => {
+    if (!confirm("Are you sure you want to delete this notice?")) return;
+    try {
+      const res = await fetch(`/api/dept-admin/notices?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotices(notices.filter((n) => n.id !== id));
+      } else {
+        alert(data.error || "Failed to delete notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while deleting the notice");
     }
   };
 
@@ -178,6 +138,15 @@ export default function DeptNoticesTab() {
       targetBatch: "",
     });
   };
+
+  const filteredNotices = notices.filter((notice) => {
+    const matchesSearch =
+      notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      notice.content.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPriority =
+      priorityFilter === "all" || notice.priority === priorityFilter;
+    return matchesSearch && matchesPriority;
+  });
 
   const getPriorityIcon = (priority) => {
     switch (priority) {

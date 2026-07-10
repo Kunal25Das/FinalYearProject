@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   UserCheck,
   Search,
@@ -24,139 +24,38 @@ export default function FacultyAssignTab() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [selectedFaculty, setSelectedFaculty] = useState("");
 
-  const batches = [
-    { id: "all", name: "All Batches" },
-    { id: "2024", name: "Batch 2024" },
-    { id: "2023", name: "Batch 2023" },
-    { id: "2022", name: "Batch 2022" },
-    { id: "2021", name: "Batch 2021" },
-  ];
+  const [batches, setBatches] = useState([{ id: "all", name: "All Batches" }]);
+  const [faculty, setFaculty] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [faculty, setFaculty] = useState([
-    {
-      id: 1,
-      name: "Dr. John Smith",
-      designation: "Professor",
-      specialization: "Networks, Security",
-      currentLoad: 12,
-      maxLoad: 16,
-    },
-    {
-      id: 2,
-      name: "Prof. Sarah Wilson",
-      designation: "Associate Professor",
-      specialization: "Data Science, ML",
-      currentLoad: 14,
-      maxLoad: 16,
-    },
-    {
-      id: 3,
-      name: "Dr. Mike Chen",
-      designation: "Assistant Professor",
-      specialization: "Algorithms, DS",
-      currentLoad: 10,
-      maxLoad: 14,
-    },
-    {
-      id: 4,
-      name: "Prof. Emily Brown",
-      designation: "Associate Professor",
-      specialization: "OOP, Software Eng",
-      currentLoad: 8,
-      maxLoad: 14,
-    },
-    {
-      id: 5,
-      name: "Dr. Alex Kumar",
-      designation: "Professor",
-      specialization: "AI, Deep Learning",
-      currentLoad: 12,
-      maxLoad: 16,
-    },
-    {
-      id: 6,
-      name: "Dr. Lisa Park",
-      designation: "Assistant Professor",
-      specialization: "DBMS, Big Data",
-      currentLoad: 6,
-      maxLoad: 14,
-    },
-  ]);
+  async function loadData() {
+    try {
+      const [facRes, clsRes, batchRes] = await Promise.all([
+        fetch("/api/dept-admin/faculty"),
+        fetch("/api/dept-admin/classes"),
+        fetch("/api/dept-admin/batches"),
+      ]);
+      const facData = await facRes.json();
+      const clsData = await clsRes.json();
+      const batchData = await batchRes.json();
+      if (facData.success && clsData.success) {
+        setFaculty(facData.faculty);
+        setClasses(clsData.classes);
+      }
+      if (batchData.success) {
+        setBatches([{ id: "all", name: "All Batches" }, ...batchData.batches]);
+      }
+    } catch (err) {
+      console.error("Error loading assign data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const [classes, setClasses] = useState([
-    {
-      id: 1,
-      code: "CS101",
-      name: "Introduction to Programming",
-      batch: "2024",
-      hoursPerWeek: 4,
-      assignedFaculty: null,
-      assignedFacultyId: null,
-    },
-    {
-      id: 2,
-      code: "CS102",
-      name: "Digital Logic Design",
-      batch: "2024",
-      hoursPerWeek: 3,
-      assignedFaculty: "Prof. Sarah Wilson",
-      assignedFacultyId: 2,
-    },
-    {
-      id: 3,
-      code: "CS201",
-      name: "Data Structures",
-      batch: "2023",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. Mike Chen",
-      assignedFacultyId: 3,
-    },
-    {
-      id: 4,
-      code: "CS202",
-      name: "Object Oriented Programming",
-      batch: "2023",
-      hoursPerWeek: 6,
-      assignedFaculty: "Prof. Emily Brown",
-      assignedFacultyId: 4,
-    },
-    {
-      id: 5,
-      code: "CS301",
-      name: "Database Management Systems",
-      batch: "2022",
-      hoursPerWeek: 4,
-      assignedFaculty: null,
-      assignedFacultyId: null,
-    },
-    {
-      id: 6,
-      code: "CS302",
-      name: "Computer Networks",
-      batch: "2022",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. John Smith",
-      assignedFacultyId: 1,
-    },
-    {
-      id: 7,
-      code: "CS401",
-      name: "Machine Learning",
-      batch: "2021",
-      hoursPerWeek: 4,
-      assignedFaculty: "Dr. Alex Kumar",
-      assignedFacultyId: 5,
-    },
-    {
-      id: 8,
-      code: "CS402",
-      name: "Cloud Computing",
-      batch: "2021",
-      hoursPerWeek: 4,
-      assignedFaculty: null,
-      assignedFacultyId: null,
-    },
-  ]);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredClasses = classes.filter((cls) => {
     const matchesSearch =
@@ -174,74 +73,64 @@ export default function FacultyAssignTab() {
     setShowAssignModal(true);
   };
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (!selectedFaculty || !selectedClass) return;
 
-    const facultyMember = faculty.find(
-      (f) => f.id === parseInt(selectedFaculty),
-    );
-    const previousFacultyId = selectedClass.assignedFacultyId;
-
-    // Update class assignment
-    setClasses(
-      classes.map((cls) =>
-        cls.id === selectedClass.id
-          ? {
-              ...cls,
-              assignedFaculty: facultyMember.name,
-              assignedFacultyId: facultyMember.id,
-            }
-          : cls,
-      ),
-    );
-
-    // Update faculty load
-    setFaculty(
-      faculty.map((f) => {
-        if (f.id === facultyMember.id) {
-          return {
-            ...f,
-            currentLoad: f.currentLoad + selectedClass.hoursPerWeek,
-          };
-        }
-        if (f.id === previousFacultyId) {
-          return {
-            ...f,
-            currentLoad: f.currentLoad - selectedClass.hoursPerWeek,
-          };
-        }
-        return f;
-      }),
-    );
-
-    setShowAssignModal(false);
-    setSelectedClass(null);
-    setSelectedFaculty("");
-  };
-
-  const handleUnassign = (cls) => {
-    if (!confirm(`Remove ${cls.assignedFaculty} from ${cls.code}?`)) return;
-
-    const facultyMember = faculty.find((f) => f.id === cls.assignedFacultyId);
-
-    setClasses(
-      classes.map((c) =>
-        c.id === cls.id
-          ? { ...c, assignedFaculty: null, assignedFacultyId: null }
-          : c,
-      ),
-    );
-
-    if (facultyMember) {
-      setFaculty(
-        faculty.map((f) =>
-          f.id === facultyMember.id
-            ? { ...f, currentLoad: f.currentLoad - cls.hoursPerWeek }
-            : f,
-        ),
-      );
+    try {
+      const res = await fetch("/api/dept-admin/classes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedClass.id,
+          assignedFacultyId: selectedFaculty,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadData();
+        setShowAssignModal(false);
+        setSelectedClass(null);
+        setSelectedFaculty("");
+      } else {
+        alert(data.error || "Failed to assign faculty");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while assigning faculty");
     }
   };
+
+  const handleUnassign = async (cls) => {
+    if (!confirm(`Remove ${cls.assignedFaculty} from ${cls.code}?`)) return;
+
+    try {
+      const res = await fetch("/api/dept-admin/classes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cls.id,
+          assignedFacultyId: null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadData();
+      } else {
+        alert(data.error || "Failed to unassign faculty");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while unassigning faculty");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const getLoadColor = (current, max) => {
     const percentage = (current / max) * 100;

@@ -15,6 +15,7 @@ const NoticeSchema = new mongoose.Schema(
       default: "All",
     },
     department: { type: String }, // optional, for department-specific notices
+    batch: { type: String }, // optional, for batch-specific notices
     pinned: { type: Boolean, default: false },
     publishedAt: { type: Date, default: Date.now },
     expiresAt: { type: Date },
