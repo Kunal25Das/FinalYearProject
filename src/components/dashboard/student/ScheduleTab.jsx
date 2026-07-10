@@ -1,76 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { format, addDays, startOfWeek } from "date-fns";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
-// import Card from "@/components/ui/Card";
+import { useState, useEffect } from "react";
+import { format, addDays, startOfWeek, isSameDay } from "date-fns";
+import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
-// import Input from "@/components/ui/Input";
 import { motion } from "framer-motion";
 
 export default function ScheduleTab() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedClass, setSelectedClass] = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const classes = [
-    {
-      id: 1,
-      name: "Computer Networks",
-      time: "09:00 - 11:00",
-      room: "Room 301",
-      faculty: "Dr. Smith",
-      status: "scheduled",
-      day: 1, // Monday
-      color:
-        "bg-blue-100 dark:bg-blue-500/20 border-blue-400 dark:border-blue-500/50 text-blue-700 dark:text-blue-300",
-    },
-    {
-      id: 2,
-      name: "Data Structures",
-      time: "11:30 - 13:30",
-      room: "Room 205",
-      faculty: "Prof. Johnson",
-      status: "rescheduled",
-      day: 1,
-      color:
-        "bg-purple-100 dark:bg-purple-500/20 border-purple-400 dark:border-purple-500/50 text-purple-700 dark:text-purple-300",
-    },
-    {
-      id: 3,
-      name: "Database Systems",
-      time: "14:00 - 16:00",
-      room: "Lab 102",
-      faculty: "Dr. Williams",
-      status: "scheduled",
-      day: 2, // Tuesday
-      color:
-        "bg-green-100 dark:bg-green-500/20 border-green-400 dark:border-green-500/50 text-green-700 dark:text-green-300",
-    },
-    {
-      id: 4,
-      name: "Operating Systems",
-      time: "10:00 - 12:00",
-      room: "Room 401",
-      faculty: "Dr. Brown",
-      status: "scheduled",
-      day: 3, // Wednesday
-      color:
-        "bg-orange-100 dark:bg-orange-500/20 border-orange-400 dark:border-orange-500/50 text-orange-700 dark:text-orange-300",
-    },
-  ];
+  async function loadSchedules() {
+    try {
+      const res = await fetch("/api/student/schedules");
+      const data = await res.json();
+      if (data.success) {
+        setSchedules(data.schedules);
+      }
+    } catch (err) {
+      console.error("Error loading student schedules:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadSchedules();
+  }, []);
 
   const weekDays = Array.from({ length: 7 }, (_, i) =>
     addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i),
   );
 
-  const getClassesForDay = (dayIndex) => {
-    // dayIndex: 0 = Monday, 6 = Sunday (adjusted for weekStartsOn: 1)
-    // In date-fns startOfWeek with weekStartsOn: 1, the array starts with Monday.
-    // My mock data uses 1 for Monday, 2 for Tuesday, etc.
-    return classes.filter((c) => c.day === dayIndex + 1);
+  const getClassesForDay = (dayDate) => {
+    return schedules.filter((s) => {
+      const sDate = new Date(s.rawDate);
+      return isSameDay(sDate, dayDate);
+    });
   };
+
+  const getSlotColor = (status) => {
+    if (status === "cancelled") {
+      return "bg-red-100 dark:bg-red-500/10 border-red-400 dark:border-red-500/20 text-red-700 dark:text-red-400 opacity-60 line-through";
+    }
+    if (status === "rescheduled") {
+      return "bg-orange-100 dark:bg-orange-500/20 border-orange-400 dark:border-orange-500/30 text-orange-700 dark:text-orange-300";
+    }
+    return "bg-violet-100 dark:bg-violet-500/10 border-violet-400 dark:border-violet-500/20 text-violet-700 dark:text-violet-300";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading schedule...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -109,7 +98,7 @@ export default function ScheduleTab() {
         {weekDays.map((day, index) => {
           const isToday =
             format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-          const dayClasses = getClassesForDay(index);
+          const dayClasses = getClassesForDay(day);
 
           return (
             <div key={index} className="space-y-3">
@@ -132,15 +121,20 @@ export default function ScheduleTab() {
                     key={cls.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`p-3 rounded-xl border ${cls.color} cursor-pointer hover:opacity-80 transition-opacity`}
+                    className={`p-3 rounded-xl border ${getSlotColor(cls.status)} cursor-pointer hover:opacity-80 transition-opacity`}
                     onClick={() => setSelectedClass(cls)}
                   >
-                    <p className="font-bold text-sm truncate">{cls.name}</p>
+                    <p className="font-bold text-sm truncate">{cls.subject}</p>
                     <div className="flex items-center gap-1 text-xs opacity-80 mt-1">
                       <Clock className="w-3 h-3" />
                       {cls.time}
                     </div>
                     <p className="text-xs opacity-80 mt-1">{cls.room}</p>
+                    {cls.status !== "scheduled" && (
+                      <p className="text-[10px] uppercase font-bold mt-1 tracking-wider">
+                        {cls.status}
+                      </p>
+                    )}
                   </motion.div>
                 ))}
                 {dayClasses.length === 0 && (
@@ -158,7 +152,7 @@ export default function ScheduleTab() {
       <Modal
         isOpen={!!selectedClass}
         onClose={() => setSelectedClass(null)}
-        title={selectedClass?.name || "Class Details"}
+        title={selectedClass?.subject || "Class Details"}
       >
         {selectedClass && (
           <div className="space-y-4">
@@ -192,11 +186,32 @@ export default function ScheduleTab() {
                 </p>
               </div>
             </div>
+            {selectedClass.status === "cancelled" &&
+              selectedClass.cancelReason && (
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <p className="text-sm text-red-500 font-semibold">
+                    Cancellation Reason
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                    {selectedClass.cancelReason}
+                  </p>
+                </div>
+              )}
+            {selectedClass.status === "rescheduled" &&
+              selectedClass.rescheduleReason && (
+                <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                  <p className="text-sm text-orange-500 font-semibold">
+                    Rescheduling Reason
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                    {selectedClass.rescheduleReason}
+                  </p>
+                </div>
+              )}
             <div className="flex justify-end gap-3 mt-6">
               <Button variant="ghost" onClick={() => setSelectedClass(null)}>
                 Close
               </Button>
-              <Button>Join Class Link</Button>
             </div>
           </div>
         )}

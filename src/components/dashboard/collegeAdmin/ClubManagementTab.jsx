@@ -9,7 +9,6 @@ import {
   Shield,
   Loader2,
   AlertCircle,
-  CheckCircle,
   XOctagon,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
@@ -329,16 +328,19 @@ export default function ClubManagementTab() {
                 })
               }
               required
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 text-gray-955 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
             >
-              <option value="" className="text-gray-950 dark:text-white">
+              <option
+                value=""
+                className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+              >
                 Select Student
               </option>
               {students.map((s) => (
                 <option
                   key={s._id}
                   value={s._id}
-                  className="text-gray-950 dark:text-white"
+                  className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
                 >
                   {s.name} ({s.email})
                 </option>
@@ -359,16 +361,19 @@ export default function ClubManagementTab() {
                 })
               }
               required
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 text-gray-955 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
             >
-              <option value="" className="text-gray-950 dark:text-white">
+              <option
+                value=""
+                className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
+              >
                 Select Faculty
               </option>
               {faculty.map((f) => (
                 <option
                   key={f._id}
                   value={f._id}
-                  className="text-gray-955 dark:text-white"
+                  className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white"
                 >
                   {f.name} ({f.email})
                 </option>

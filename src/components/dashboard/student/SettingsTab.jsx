@@ -7,7 +7,6 @@ import {
   Bell,
   Sun,
   Moon,
-  Smartphone,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -303,7 +302,7 @@ export default function SettingsTab() {
         </Card>
 
         {/* PWA installation guide card */}
-        <Card className="border border-gray-200 dark:border-white/10 space-y-4">
+        {/* <Card className="border border-gray-200 dark:border-white/10 space-y-4">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-purple-500" />
             <span>PWA Installation Info</span>
@@ -344,7 +343,7 @@ export default function SettingsTab() {
               </span>
             </div>
           </div>
-        </Card>
+        </Card> */}
       </div>
 
       {userRole === "dept-admin" && (

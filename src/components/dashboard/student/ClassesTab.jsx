@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   FileText,
   Download,
@@ -8,120 +8,105 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
-// import Input from "@/components/ui/Input";
 import { motion } from "framer-motion";
 
 export default function ClassesTab() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [comments, setComments] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Mock data
-  const classes = [
-    {
-      id: 1,
-      name: "Computer Networks",
-      code: "CS401",
-      faculty: "Dr. Smith",
-      credits: 4,
-      color: "from-blue-600 to-cyan-600",
-      notices: [
-        {
-          id: 1,
-          title: "Assignment Due",
-          date: "2025-12-20",
-          content: "Submit assignment on network protocols",
-        },
-      ],
-      resources: [
-        {
-          id: 1,
-          name: "Lecture 1 - Introduction.pdf",
-          size: "2.4 MB",
-          uploadDate: "2025-12-10",
-        },
-        {
-          id: 2,
-          name: "Network Protocols.pdf",
-          size: "5.1 MB",
-          uploadDate: "2025-12-12",
-        },
-      ],
-      assignments: [
-        {
-          id: 1,
-          title: "Network Protocol Analysis",
-          dueDate: "2025-12-20",
-          status: "pending",
-        },
-        {
-          id: 2,
-          title: "Router Configuration",
-          dueDate: "2025-12-15",
-          status: "submitted",
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Data Structures",
-      code: "CS302",
-      faculty: "Prof. Johnson",
-      credits: 3,
-      color: "from-purple-600 to-pink-600",
-      notices: [],
-      resources: [
-        {
-          id: 1,
-          name: "Trees and Graphs.pdf",
-          size: "3.2 MB",
-          uploadDate: "2025-12-08",
-        },
-      ],
-      assignments: [
-        {
-          id: 1,
-          title: "Binary Tree Implementation",
-          dueDate: "2025-12-18",
-          status: "submitted",
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Database Systems",
-      code: "CS403",
-      faculty: "Dr. Williams",
-      credits: 4,
-      color: "from-orange-600 to-red-600",
-      notices: [
-        {
-          id: 1,
-          title: "Lab Cancelled",
-          date: "2025-12-16",
-          content: "Tomorrow's lab is cancelled",
-        },
-      ],
-      resources: [
-        {
-          id: 1,
-          name: "SQL Basics.pdf",
-          size: "1.8 MB",
-          uploadDate: "2025-12-05",
-        },
-      ],
-      assignments: [],
-    },
-  ];
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/student/classes");
+      const data = await res.json();
+      if (data.success) {
+        setClasses(data.classes);
+        if (selectedClass) {
+          const updatedSelected = data.classes.find(
+            (c) => c.id === selectedClass.id,
+          );
+          if (updatedSelected) {
+            setSelectedClass(updatedSelected);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error loading classes:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClass]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const openSubmitModal = (assignment) => {
     setSelectedAssignment(assignment);
     setIsSubmitModalOpen(true);
+    setSelectedFile(null);
+    setComments("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const handleSubmitAssignment = async () => {
+    if (!selectedAssignment) return;
+    if (!selectedFile) {
+      alert("Please select a file to submit");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("assignmentId", selectedAssignment.id);
+      formData.append("feedback", comments);
+      formData.append("file", selectedFile);
+
+      const res = await fetch("/api/student/assignments/submit", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Assignment submitted successfully!");
+        setIsSubmitModalOpen(false);
+        setSelectedFile(null);
+        setComments("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        await loadData();
+      } else {
+        alert(data.error || "Failed to submit assignment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred during submission");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading classes...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -272,9 +257,17 @@ export default function ClassesTab() {
                         </p>
                       </div>
                     </div>
-                    <Button variant="ghost" className="!p-2">
+                    <a
+                      href={
+                        resource.fileUrl
+                          ? resource.fileUrl.replace("/view?", "/download?")
+                          : "#"
+                      }
+                      download
+                      className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-purple-600 transition-colors"
+                    >
                       <Download className="w-5 h-5" />
-                    </Button>
+                    </a>
                   </div>
                 ))}
                 {selectedClass.resources.length === 0 && (
@@ -300,15 +293,15 @@ export default function ClassesTab() {
                     <div className="flex items-center gap-3">
                       <div
                         className={`p-2 rounded-lg ${
-                          assignment.status === "submitted"
-                            ? "bg-green-500/20 text-green-400"
-                            : "bg-orange-500/20 text-orange-400"
+                          assignment.status === "pending"
+                            ? "bg-orange-500/20 text-orange-400"
+                            : "bg-green-500/20 text-green-400"
                         }`}
                       >
-                        {assignment.status === "submitted" ? (
-                          <CheckCircle className="w-5 h-5" />
-                        ) : (
+                        {assignment.status === "pending" ? (
                           <Clock className="w-5 h-5" />
+                        ) : (
+                          <CheckCircle className="w-5 h-5" />
                         )}
                       </div>
                       <div>
@@ -329,8 +322,22 @@ export default function ClassesTab() {
                         <Upload className="w-4 h-4 mr-2" />
                         Submit
                       </Button>
+                    ) : assignment.status === "graded" ? (
+                      <div className="text-right">
+                        <span className="text-sm text-green-600 dark:text-green-400 font-bold block">
+                          Graded: {assignment.marks}/{assignment.totalMarks}
+                        </span>
+                        {assignment.feedback && (
+                          <span
+                            className="text-xs text-gray-500 block italic max-w-[200px] truncate"
+                            title={assignment.feedback}
+                          >
+                            &quot;{assignment.feedback}&quot;
+                          </span>
+                        )}
+                      </div>
                     ) : (
-                      <span className="text-sm text-green-400 font-medium px-4">
+                      <span className="text-sm text-green-600 dark:text-green-400 font-medium px-4">
                         Submitted
                       </span>
                     )}
@@ -371,31 +378,78 @@ export default function ClassesTab() {
               Description (Optional)
             </label>
             <textarea
-              className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 h-32"
+              className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-3 text-gray-900 dark:text-white focus:outline-none focus:border-violet-500 h-32 resize-none"
               placeholder="Add any comments..."
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
 
-          <div className="border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl p-8 text-center hover:border-violet-500/50 transition-colors cursor-pointer bg-gray-50 dark:bg-white/5">
-            <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-900 dark:text-white font-medium">
-              Click to upload or drag and drop
-            </p>
-            <p className="text-sm text-gray-500">PDF, DOCX, ZIP up to 10MB</p>
+          <div
+            onClick={() => !isSubmitting && fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+              selectedFile
+                ? "border-green-500/50 bg-green-500/5"
+                : "border-gray-300 dark:border-white/20 hover:border-violet-500/50 bg-gray-50 dark:bg-white/5"
+            }`}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={(e) => setSelectedFile(e.target.files[0] || null)}
+              style={{ display: "none" }}
+              disabled={isSubmitting}
+            />
+            {selectedFile ? (
+              <div className="flex flex-col items-center">
+                <span className="text-xl">📄</span>
+                <p className="font-medium text-gray-900 dark:text-white mt-1 max-w-[250px] truncate text-sm">
+                  {selectedFile.name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {(selectedFile.size / 1024).toFixed(0)} KB
+                </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="mt-2 text-xs text-red-500 hover:text-red-700 font-medium"
+                  disabled={isSubmitting}
+                >
+                  Remove File
+                </button>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-900 dark:text-white font-medium">
+                  Click to upload or drag and drop
+                </p>
+                <p className="text-sm text-gray-500">
+                  PDF, DOCX, ZIP up to 10MB
+                </p>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 mt-6">
-            <Button variant="ghost" onClick={() => setIsSubmitModalOpen(false)}>
-              Cancel
-            </Button>
             <Button
+              variant="ghost"
               onClick={() => {
                 setIsSubmitModalOpen(false);
-                // Here you would handle the actual submission logic
-                alert("Assignment submitted successfully!");
+                setSelectedFile(null);
+                setComments("");
               }}
+              disabled={isSubmitting}
             >
-              Submit
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitAssignment} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit"}
             </Button>
           </div>
         </div>
