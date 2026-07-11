@@ -439,7 +439,7 @@ bot.on("message:text", async (ctx) => {
       `Return ONLY the JSON string. Do not include markdown formatting tags.`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`,
       {
         method: "POST",
         headers: {
