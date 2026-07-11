@@ -312,7 +312,11 @@ async function handleClasses(ctx, targetDayName = null) {
     });
 
     if (finalSchedules.length === 0) {
-      await ctx.reply("📅 No classes scheduled for the selected day.");
+      if (targetDayName) {
+        await ctx.reply(`📅 No classes scheduled for ${targetDayName}.`);
+      } else {
+        await ctx.reply("📅 No classes scheduled for today or tomorrow.");
+      }
       return;
     }
 
@@ -459,7 +463,6 @@ function cleanJson(text) {
   }
   return cleaned;
 }
-
 // 7. General natural language conversational query classifier
 bot.on("message:text", async (ctx) => {
   const query = ctx.message.text ? ctx.message.text.trim() : "";
@@ -481,8 +484,7 @@ bot.on("message:text", async (ctx) => {
       `JSON Schema:\n` +
       `{\n` +
       `  "command": "classes" | "news" | "events" | "help" | "none",\n` +
-      `  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" | "today" | "tomorrow" | null,\n` +
-      `  "reply": "If the command is 'none', write a polite, concise AI response to answer the user's chit-chat or general question. If the command is NOT 'none', keep this field as an empty string."\n` +
+      `  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" | "today" | "tomorrow" | null\n` +
       `}\n\n` +
       `Command Guidelines:\n` +
       `- "classes": User is asking for class schedules, timetables, or session cancellations/reschedules (e.g. "is there any class on monday", "do I have classes tomorrow", "show schedule").\n` +
@@ -494,7 +496,7 @@ bot.on("message:text", async (ctx) => {
       `Return ONLY the JSON string. Do not include markdown formatting tags.`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`,
@@ -543,8 +545,6 @@ bot.on("message:text", async (ctx) => {
     let action = {
       command: "none",
       day: null,
-      reply:
-        "I received your query! How can I assist you with campus notices or classes?",
     };
 
     try {
@@ -569,9 +569,49 @@ bot.on("message:text", async (ctx) => {
     } else if (action.command === "help") {
       await handleHelp(ctx);
     } else {
+      // 2nd call: fetch chat response dynamically for general chit-chat queries
+      const chatPrompt =
+        "You are the official UniVerse Campus Connect virtual AI guide helper. " +
+        `Politely and concisely answer this query: "${query}"`;
+
+      try {
+        const chatController = new AbortController();
+        const chatTimeout = setTimeout(() => chatController.abort(), 6000);
+
+        const response2 = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: chatPrompt }] }],
+            }),
+            signal: chatController.signal,
+          },
+        );
+        clearTimeout(chatTimeout);
+
+        if (response2.ok) {
+          const data2 = await response2.json();
+          if (
+            data2.candidates &&
+            data2.candidates[0] &&
+            data2.candidates[0].content &&
+            data2.candidates[0].content.parts &&
+            data2.candidates[0].content.parts[0]
+          ) {
+            await ctx.reply(data2.candidates[0].content.parts[0].text);
+            return;
+          }
+        }
+      } catch (chatErr) {
+        console.error("Gemini chit-chat generator error:", chatErr);
+      }
+
       await ctx.reply(
-        action.reply ||
-          "I received your query! How can I assist you with campus notices or classes?",
+        "I received your query! How can I assist you with campus notices or classes?",
       );
     }
   } catch (err) {
