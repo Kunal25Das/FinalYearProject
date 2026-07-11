@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Users,
   Calendar,
@@ -8,105 +9,83 @@ import {
   Coins,
   Clock,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
 export default function OrganizerHomeTab({ setActiveTab }) {
-  const organizerData = {
-    clubName: "Computer Science Club",
-    totalEventsManaged: 8,
-    activeEvents: 2,
-    totalRegistrations: 156,
-    volunteersAssigned: 24,
-    coinsAwarded: 450,
-  };
+  const [stats, setStats] = useState({
+    clubName: "Campus Club",
+    totalEventsManaged: 0,
+    activeEvents: 0,
+    totalRegistrations: 0,
+    volunteersAssigned: 0,
+    coinsAwarded: 0,
+  });
+  const [myEvents, setMyEvents] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const res = await fetch("/api/event-organizer/stats");
+        const data = await res.json();
+        if (data.success) {
+          setStats(data.stats);
+          setMyEvents(data.myEvents);
+          setRecentActivities(data.recentActivities);
+        }
+      } catch (err) {
+        console.error("Failed to load organizer stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
+  }, []);
 
   const quickStats = [
     {
       label: "Active Events",
-      value: organizerData.activeEvents,
+      value: stats.activeEvents,
       icon: Calendar,
       color: "text-purple-400",
       bgColor: "bg-purple-500/20",
     },
     {
       label: "Total Registrations",
-      value: organizerData.totalRegistrations,
+      value: stats.totalRegistrations,
       icon: Users,
       color: "text-blue-400",
       bgColor: "bg-blue-500/20",
     },
     {
       label: "Volunteers Assigned",
-      value: organizerData.volunteersAssigned,
+      value: stats.volunteersAssigned,
       icon: Award,
       color: "text-green-400",
       bgColor: "bg-green-500/20",
     },
     {
       label: "Coins Awarded",
-      value: organizerData.coinsAwarded,
+      value: stats.coinsAwarded,
       icon: Coins,
       color: "text-yellow-400",
       bgColor: "bg-yellow-500/20",
     },
   ];
 
-  const myEvents = [
-    {
-      id: 1,
-      name: "Hackathon 2025",
-      date: "Feb 15, 2025",
-      registrations: 85,
-      status: "active",
-      volunteers: 10,
-    },
-    {
-      id: 2,
-      name: "Tech Talk: AI in Healthcare",
-      date: "Feb 20, 2025",
-      registrations: 42,
-      status: "active",
-      volunteers: 5,
-    },
-    {
-      id: 3,
-      name: "Coding Workshop",
-      date: "Jan 28, 2025",
-      registrations: 29,
-      status: "completed",
-      volunteers: 4,
-    },
-  ];
-
-  const recentActivities = [
-    {
-      id: 1,
-      text: "New registration for Hackathon 2025",
-      time: "30 mins ago",
-      type: "registration",
-    },
-    {
-      id: 2,
-      text: "Volunteer Rahul assigned to Tech Talk",
-      time: "2 hours ago",
-      type: "volunteer",
-    },
-    {
-      id: 3,
-      text: "25 coins awarded to setup team",
-      time: "1 day ago",
-      type: "coins",
-    },
-    {
-      id: 4,
-      text: "Coding Workshop completed successfully",
-      time: "2 days ago",
-      type: "event",
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading dashboard data...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -118,7 +97,7 @@ export default function OrganizerHomeTab({ setActiveTab }) {
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Managing events for{" "}
             <span className="text-purple-600 dark:text-purple-400 font-medium">
-              {organizerData.clubName}
+              {stats.clubName}
             </span>
           </p>
         </div>
@@ -178,18 +157,18 @@ export default function OrganizerHomeTab({ setActiveTab }) {
                   </h3>
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      event.status === "active"
+                      event.status === "upcoming"
                         ? "bg-green-500/20 text-green-600 dark:text-green-400"
                         : "bg-gray-500/20 text-gray-600 dark:text-gray-400"
                     }`}
                   >
-                    {event.status === "active" ? (
+                    {event.status === "upcoming" ? (
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Active
+                        <Clock className="w-3 h-3" /> Upcoming
                       </span>
                     ) : (
                       <span className="flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" /> Completed
+                        <CheckCircle className="w-3 h-3" /> {event.status}
                       </span>
                     )}
                   </span>
@@ -209,6 +188,11 @@ export default function OrganizerHomeTab({ setActiveTab }) {
                 </div>
               </div>
             ))}
+            {myEvents.length === 0 && (
+              <p className="text-sm text-gray-500 italic py-4 text-center">
+                No events organized yet.
+              </p>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -250,6 +234,11 @@ export default function OrganizerHomeTab({ setActiveTab }) {
                 </div>
               </div>
             ))}
+            {recentActivities.length === 0 && (
+              <p className="text-sm text-gray-500 italic py-4 text-center">
+                No recent activity recorded.
+              </p>
+            )}
           </div>
         </Card>
       </div>

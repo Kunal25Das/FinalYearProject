@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ExternalLink,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -16,77 +17,70 @@ import Modal from "@/components/ui/Modal";
 export default function HappeningsTab() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [filter, setFilter] = useState("All Categories");
-  const [registeredEvents, setRegisteredEvents] = useState([]);
+  const [happenings, setHappenings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
 
-  const happenings = [
-    {
-      id: 1,
-      title: "Tech Symposium 2025",
-      category: "Event",
-      date: "Dec 20, 2025",
-      time: "10:00 AM",
-      location: "Main Auditorium",
-      description:
-        "Join us for the annual Tech Symposium featuring industry leaders and innovative projects. Keynote speakers from Google, Microsoft, and Tesla will be sharing their insights on the future of AI and Robotics.",
-      image: "bg-gradient-to-br from-blue-600 to-purple-600",
-      tags: ["Tech", "Networking", "Innovation"],
-      organizer: "Computer Science Dept",
-      registrationLink: "#",
-    },
-    {
-      id: 2,
-      title: "Hackathon: Code for Good",
-      category: "Competition",
-      date: "Jan 15, 2026",
-      time: "09:00 AM",
-      location: "Innovation Hub",
-      description:
-        "48-hour hackathon to build solutions for social impact. Great prizes to be won! Teams of 2-4 members can participate. Themes include Healthcare, Education, and Environment.",
-      image: "bg-gradient-to-br from-green-600 to-emerald-600",
-      tags: ["Coding", "Social Impact", "Prizes"],
-      organizer: "Coding Club",
-      registrationLink: "#",
-    },
-    {
-      id: 3,
-      title: "Cultural Fest: Aura",
-      category: "Festival",
-      date: "Feb 10, 2026",
-      time: "05:00 PM",
-      location: "College Ground",
-      description:
-        "A night of music, dance, and celebration. Don't miss the star performance! Food stalls, games, and DJ night included.",
-      image: "bg-gradient-to-br from-pink-600 to-rose-600",
-      tags: ["Music", "Dance", "Fun"],
-      organizer: "Student Council",
-      registrationLink: "#",
-    },
-    {
-      id: 4,
-      title: "Career Fair 2026",
-      category: "Career",
-      date: "Mar 05, 2026",
-      time: "11:00 AM",
-      location: "Convention Center",
-      description:
-        "Meet top recruiters and explore internship and job opportunities. Bring your resumes and dress formally.",
-      image: "bg-gradient-to-br from-orange-600 to-yellow-600",
-      tags: ["Jobs", "Internships", "Networking"],
-      organizer: "Placement Cell",
-      registrationLink: "#",
-    },
-  ];
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/student/happenings");
+      const data = await res.json();
+      if (data.success) {
+        setHappenings(data.happenings);
+      }
+    } catch (err) {
+      console.error("Failed to load happenings:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const filteredHappenings =
     filter === "All Categories"
       ? happenings
       : happenings.filter((h) => h.category === filter);
 
-  const handleRegister = (eventId) => {
-    if (registeredEvents.includes(eventId)) return;
-    setRegisteredEvents([...registeredEvents, eventId]);
-    // In a real app, you would make an API call here
+  const handleRegister = async (eventId) => {
+    setRegistering(true);
+    try {
+      const res = await fetch("/api/student/happenings/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHappenings((prev) =>
+          prev.map((h) =>
+            h.id === eventId ? { ...h, isRegistered: true } : h,
+          ),
+        );
+        if (selectedEvent && selectedEvent.id === eventId) {
+          setSelectedEvent((prev) => ({ ...prev, isRegistered: true }));
+        }
+      } else {
+        alert(data.error || "Failed to register for event");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred during registration");
+    } finally {
+      setRegistering(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading campus happenings...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -250,17 +244,18 @@ export default function HappeningsTab() {
                   </div>
 
                   <Button
-                    className={`w-full mt-2 ${registeredEvents.includes(selectedEvent.id) ? "!bg-green-600 hover:!bg-green-700" : ""}`}
+                    className={`w-full mt-2 ${selectedEvent.isRegistered ? "!bg-green-600 hover:!bg-green-700" : ""}`}
                     onClick={() => handleRegister(selectedEvent.id)}
-                    disabled={registeredEvents.includes(selectedEvent.id)}
+                    disabled={selectedEvent.isRegistered || registering}
                   >
-                    {registeredEvents.includes(selectedEvent.id) ? (
+                    {selectedEvent.isRegistered ? (
                       <>
                         Registered <CheckCircle className="w-4 h-4 ml-2" />
                       </>
                     ) : (
                       <>
-                        Register Now <ExternalLink className="w-4 h-4 ml-2" />
+                        {registering ? "Registering..." : "Register Now"}{" "}
+                        <ExternalLink className="w-4 h-4 ml-2" />
                       </>
                     )}
                   </Button>

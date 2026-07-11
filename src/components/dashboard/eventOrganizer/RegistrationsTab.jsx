@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Users,
@@ -11,6 +11,7 @@ import {
   XCircle,
   Mail,
   Eye,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -25,75 +26,28 @@ export default function RegistrationsTab() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState(null);
 
-  const events = [
-    { id: "all", name: "All Events" },
-    { id: "1", name: "Hackathon 2025" },
-    { id: "2", name: "Tech Talk: AI" },
-    { id: "3", name: "Coding Workshop" },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [registrations, setRegistrations] = useState([]);
+  const [events, setEvents] = useState([{ id: "all", name: "All Events" }]);
 
-  const [registrations, setRegistrations] = useState([
-    {
-      id: 1,
-      name: "Aditya Verma",
-      email: "aditya@college.edu",
-      phone: "+91 98765 43210",
-      event: "Hackathon 2025",
-      eventId: "1",
-      registeredAt: "2025-01-25 14:30",
-      status: "confirmed",
-      teamName: "Code Warriors",
-      teamSize: 4,
-    },
-    {
-      id: 2,
-      name: "Kavya Sharma",
-      email: "kavya@college.edu",
-      phone: "+91 87654 32109",
-      event: "Hackathon 2025",
-      eventId: "1",
-      registeredAt: "2025-01-24 10:15",
-      status: "pending",
-      teamName: "Tech Titans",
-      teamSize: 3,
-    },
-    {
-      id: 3,
-      name: "Rohan Mehta",
-      email: "rohan@college.edu",
-      phone: "+91 76543 21098",
-      event: "Tech Talk: AI",
-      eventId: "2",
-      registeredAt: "2025-01-23 16:45",
-      status: "confirmed",
-      teamName: null,
-      teamSize: null,
-    },
-    {
-      id: 4,
-      name: "Shruti Nair",
-      email: "shruti@college.edu",
-      phone: "+91 65432 10987",
-      event: "Coding Workshop",
-      eventId: "3",
-      registeredAt: "2025-01-22 09:00",
-      status: "attended",
-      teamName: null,
-      teamSize: null,
-    },
-    {
-      id: 5,
-      name: "Harsh Gupta",
-      email: "harsh@college.edu",
-      phone: "+91 54321 09876",
-      event: "Coding Workshop",
-      eventId: "3",
-      registeredAt: "2025-01-21 11:30",
-      status: "cancelled",
-      teamName: null,
-      teamSize: null,
-    },
-  ]);
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/event-organizer/registrations");
+      const data = await res.json();
+      if (data.success) {
+        setRegistrations(data.registrations);
+        setEvents(data.events);
+      }
+    } catch (err) {
+      console.error("Failed to load registrations:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const filteredRegistrations = registrations.filter((reg) => {
     const matchesSearch =
@@ -105,12 +59,30 @@ export default function RegistrationsTab() {
     return matchesSearch && matchesEvent && matchesStatus;
   });
 
-  const handleStatusChange = (regId, newStatus) => {
-    setRegistrations(
-      registrations.map((reg) =>
-        reg.id === regId ? { ...reg, status: newStatus } : reg,
-      ),
-    );
+  const handleStatusChange = async (regId, newStatus) => {
+    try {
+      const res = await fetch("/api/event-organizer/registrations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registrationId: regId, status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRegistrations(
+          registrations.map((reg) =>
+            reg.id === regId ? { ...reg, status: newStatus } : reg,
+          ),
+        );
+        if (selectedRegistration && selectedRegistration.id === regId) {
+          setSelectedRegistration((prev) => ({ ...prev, status: newStatus }));
+        }
+      } else {
+        alert(data.error || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while updating status");
+    }
   };
 
   const getStatusConfig = (status) => {
@@ -154,6 +126,15 @@ export default function RegistrationsTab() {
     pending: registrations.filter((r) => r.status === "pending").length,
     attended: registrations.filter((r) => r.status === "attended").length,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading registrations...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

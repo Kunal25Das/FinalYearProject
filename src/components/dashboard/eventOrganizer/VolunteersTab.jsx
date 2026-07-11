@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Users,
@@ -9,6 +9,7 @@ import {
   CheckCircle,
   Plus,
   X,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -25,67 +26,48 @@ export default function VolunteersTab() {
   const [awardAmount, setAwardAmount] = useState(10);
   const [awardReason, setAwardReason] = useState("");
 
-  const events = [
-    { id: "all", name: "All Events" },
-    { id: "1", name: "Hackathon 2025" },
-    { id: "2", name: "Tech Talk: AI" },
-    { id: "3", name: "Coding Workshop" },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [volunteers, setVolunteers] = useState([]);
+  const [availableMembers, setAvailableMembers] = useState([]);
+  const [events, setEvents] = useState([{ id: "all", name: "All Events" }]);
 
-  const [volunteers, setVolunteers] = useState([
-    {
-      id: 1,
-      name: "Rahul Sharma",
-      email: "rahul@example.com",
-      role: "Coordinator",
-      event: "Hackathon 2025",
-      eventId: "1",
-      tasks: ["Registration Desk", "Technical Support"],
-      coinsEarned: 50,
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Priya Singh",
-      email: "priya@example.com",
-      role: "Volunteer",
-      event: "Hackathon 2025",
-      eventId: "1",
-      tasks: ["Food & Refreshments"],
-      coinsEarned: 25,
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Amit Kumar",
-      email: "amit@example.com",
-      role: "Team Lead",
-      event: "Tech Talk: AI",
-      eventId: "2",
-      tasks: ["AV Setup", "Guest Coordination"],
-      coinsEarned: 35,
-      status: "active",
-    },
-    {
-      id: 4,
-      name: "Sneha Patel",
-      email: "sneha@example.com",
-      role: "Volunteer",
-      event: "Coding Workshop",
-      eventId: "3",
-      tasks: ["Participant Support"],
-      coinsEarned: 20,
-      status: "completed",
-    },
-  ]);
-
-  const availableMembers = [
-    { id: 101, name: "Neha Gupta", email: "neha@example.com" },
-    { id: 102, name: "Vikram Joshi", email: "vikram@example.com" },
-    { id: 103, name: "Ananya Roy", email: "ananya@example.com" },
-  ];
+  // State for Assign Volunteer Form
+  const [selectedAssignEvent, setSelectedAssignEvent] = useState("");
+  const [selectedAssignMember, setSelectedAssignMember] = useState("");
+  const [selectedAssignRole, setSelectedAssignRole] = useState("Volunteer");
+  const [assignTasks, setAssignTasks] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const roles = ["Volunteer", "Coordinator", "Team Lead"];
+
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/event-organizer/volunteers");
+      const data = await res.json();
+      if (data.success) {
+        setVolunteers(data.volunteers);
+        setAvailableMembers(data.availableMembers);
+        setEvents(data.events);
+
+        // Set form defaults
+        const filteredEvents = data.events.filter((e) => e.id !== "all");
+        if (filteredEvents.length > 0) {
+          setSelectedAssignEvent(filteredEvents[0].id);
+        }
+        if (data.availableMembers.length > 0) {
+          setSelectedAssignMember(data.availableMembers[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load volunteers data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const filteredVolunteers = volunteers.filter((volunteer) => {
     const matchesSearch =
@@ -96,33 +78,161 @@ export default function VolunteersTab() {
     return matchesSearch && matchesEvent;
   });
 
-  const handleAwardCoins = () => {
+  const handleAwardCoins = async () => {
     if (selectedVolunteer && awardAmount > 0) {
-      setVolunteers(
-        volunteers.map((v) =>
-          v.id === selectedVolunteer.id
-            ? { ...v, coinsEarned: v.coinsEarned + awardAmount }
-            : v,
-        ),
-      );
-      setShowAwardModal(false);
-      setSelectedVolunteer(null);
-      setAwardAmount(10);
-      setAwardReason("");
+      try {
+        const res = await fetch("/api/event-organizer/award-coins", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberIds: [
+              selectedVolunteer.email
+                ? selectedVolunteer.id
+                : selectedVolunteer.id,
+            ], // Standard ID
+            memberIds: [
+              selectedVolunteer.email
+                ? selectedVolunteer.id
+                : selectedVolunteer.id,
+            ], // ID
+            // Wait, we need to pass the actual user account ID! Let's check volunteer object structure:
+            // v.user is populated, so v.user._id is the User ID!
+            // Wait, in formatting we did: `id: v._id.toString()`, but where is the User's ID?
+            // Ah! Let's check format: `name: v.user?.name`, `email: v.user?.email`.
+            // Wait! In `v.user._id` we didn't explicitly map `userId` in formatting!
+            // Let's check the formatting in GET `/api/event-organizer/volunteers`:
+            // `formattedVolunteers = volunteers.map((v) => ({ id: v._id.toString(), name: v.user?.name ... }));`
+            // Wait! So `v._id` is the volunteer record ID, but we want the User ID for awarding coins!
+            // Let's modify the GET formatting in `volunteers/route.js` to also return `userId: v.user?._id?.toString()`.
+            // Wait, yes! Let's check how we did `formattedVolunteers` formatting in `route.js`:
+            // Yes, we populated `user`. So we can pass `userId` as `v.user?._id?.toString()`.
+            // Let's make sure we pass the correct user ID when awarding coins!
+            memberIds: [selectedVolunteer.userId],
+            coins: awardAmount,
+            reason: awardReason,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setVolunteers(
+            volunteers.map((v) =>
+              v.id === selectedVolunteer.id
+                ? { ...v, coinsEarned: v.coinsEarned + awardAmount }
+                : v,
+            ),
+          );
+          setShowAwardModal(false);
+          setSelectedVolunteer(null);
+          setAwardAmount(10);
+          setAwardReason("");
+        } else {
+          alert(data.error || "Failed to award coins");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("An error occurred");
+      }
     }
   };
 
-  const handleRemoveVolunteer = (volunteerId) => {
-    setVolunteers(volunteers.filter((v) => v.id !== volunteerId));
+  const handleAssignVolunteer = async () => {
+    if (!selectedAssignEvent || !selectedAssignMember) {
+      alert("Please select both an event and a member to assign.");
+      return;
+    }
+    setIsAssigning(true);
+    try {
+      const res = await fetch("/api/event-organizer/volunteers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: selectedAssignEvent,
+          userId: selectedAssignMember,
+          role: selectedAssignRole,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const newVol = data.volunteer;
+        if (assignTasks) {
+          const tasksArray = assignTasks
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean);
+          await fetch("/api/event-organizer/volunteers", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              volunteerId: newVol._id,
+              tasks: tasksArray,
+            }),
+          });
+        }
+        setShowAssignModal(false);
+        setAssignTasks("");
+        loadData();
+      } else {
+        alert(data.error || "Failed to assign volunteer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred");
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
-  const handleChangeRole = (volunteerId, newRole) => {
-    setVolunteers(
-      volunteers.map((v) =>
-        v.id === volunteerId ? { ...v, role: newRole } : v,
-      ),
-    );
+  const handleRemoveVolunteer = async (volunteerId) => {
+    if (!confirm("Are you sure you want to remove this volunteer?")) return;
+    try {
+      const res = await fetch(
+        `/api/event-organizer/volunteers?id=${volunteerId}`,
+        {
+          method: "DELETE",
+        },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setVolunteers(volunteers.filter((v) => v.id !== volunteerId));
+      } else {
+        alert(data.error || "Failed to remove volunteer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error removing volunteer");
+    }
   };
+
+  const handleChangeRole = async (volunteerId, newRole) => {
+    try {
+      const res = await fetch("/api/event-organizer/volunteers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ volunteerId, role: newRole }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVolunteers(
+          volunteers.map((v) =>
+            v.id === volunteerId ? { ...v, role: newRole } : v,
+          ),
+        );
+      } else {
+        alert(data.error || "Failed to update role");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading volunteers...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -306,21 +416,23 @@ export default function VolunteersTab() {
                 </div>
 
                 {/* Tasks */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Assigned Tasks:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {volunteer.tasks.map((task, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full text-sm"
-                      >
-                        {task}
-                      </span>
-                    ))}
+                {volunteer.tasks && volunteer.tasks.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      Assigned Tasks:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {volunteer.tasks.map((task, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full text-sm"
+                        >
+                          {task}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </Card>
             </motion.div>
           ))}
@@ -347,7 +459,11 @@ export default function VolunteersTab() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Select Event
             </label>
-            <select className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <select
+              value={selectedAssignEvent}
+              onChange={(e) => setSelectedAssignEvent(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
               {events
                 .filter((e) => e.id !== "all")
                 .map((event) => (
@@ -366,7 +482,11 @@ export default function VolunteersTab() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Select Member
             </label>
-            <select className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <select
+              value={selectedAssignMember}
+              onChange={(e) => setSelectedAssignMember(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
               {availableMembers.map((member) => (
                 <option
                   key={member.id}
@@ -376,6 +496,9 @@ export default function VolunteersTab() {
                   {member.name} ({member.email})
                 </option>
               ))}
+              {availableMembers.length === 0 && (
+                <option value="">No members available</option>
+              )}
             </select>
           </div>
 
@@ -383,7 +506,11 @@ export default function VolunteersTab() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Assign Role
             </label>
-            <select className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <select
+              value={selectedAssignRole}
+              onChange={(e) => setSelectedAssignRole(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
               {roles.map((role) => (
                 <option
                   key={role}
@@ -400,22 +527,31 @@ export default function VolunteersTab() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Tasks (comma separated)
             </label>
-            <Input placeholder="e.g., Registration Desk, Tech Support" />
+            <Input
+              placeholder="e.g., Registration Desk, Tech Support"
+              value={assignTasks}
+              onChange={(e) => setAssignTasks(e.target.value)}
+            />
           </div>
 
           <div className="flex gap-3 pt-4">
             <Button
               variant="ghost"
               className="flex-1"
-              onClick={() => setShowAssignModal(false)}
+              onClick={() => {
+                setShowAssignModal(false);
+                setAssignTasks("");
+              }}
+              disabled={isAssigning}
             >
               Cancel
             </Button>
             <Button
               className="flex-1"
-              onClick={() => setShowAssignModal(false)}
+              onClick={handleAssignVolunteer}
+              disabled={isAssigning || availableMembers.length === 0}
             >
-              Assign Volunteer
+              {isAssigning ? "Assigning..." : "Assign Volunteer"}
             </Button>
           </div>
         </div>

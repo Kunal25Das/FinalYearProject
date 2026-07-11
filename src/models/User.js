@@ -36,6 +36,7 @@ const UserSchema = new mongoose.Schema(
     specialization: [{ type: String }],
     publications: { type: Number, default: 0 },
     maxLoad: { type: Number, default: 16 },
+    coins: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

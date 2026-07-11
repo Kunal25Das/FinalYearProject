@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Coins,
   Users,
@@ -9,6 +9,7 @@ import {
   Gift,
   TrendingUp,
   Award,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -23,81 +24,38 @@ export default function AwardsTab() {
   const [coinsToAward, setCoinsToAward] = useState(10);
   const [awardReason, setAwardReason] = useState("");
 
-  const members = [
-    {
-      id: 1,
-      name: "Alice Johnson",
-      email: "alice@example.com",
-      coinsEarned: 150,
-      avatar: "👩‍💻",
-    },
-    {
-      id: 2,
-      name: "Bob Smith",
-      email: "bob@example.com",
-      coinsEarned: 50,
-      avatar: "👨‍🎓",
-    },
-    {
-      id: 3,
-      name: "Charlie Brown",
-      email: "charlie@example.com",
-      coinsEarned: 75,
-      avatar: "🧑‍💼",
-    },
-    {
-      id: 4,
-      name: "Diana Prince",
-      email: "diana@example.com",
-      coinsEarned: 200,
-      avatar: "👩‍🔬",
-    },
-    {
-      id: 5,
-      name: "Eve Wilson",
-      email: "eve@example.com",
-      coinsEarned: 25,
-      avatar: "👩‍🎨",
-    },
-    {
-      id: 6,
-      name: "Frank Miller",
-      email: "frank@example.com",
-      coinsEarned: 100,
-      avatar: "👨‍🔧",
-    },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState([]);
+  const [recentAwards, setRecentAwards] = useState([]);
 
-  const recentAwards = [
-    {
-      id: 1,
-      member: "Alice Johnson",
-      coins: 50,
-      reason: "Hackathon Participation",
-      date: "2025-12-15",
-    },
-    {
-      id: 2,
-      member: "Volunteer Team",
-      coins: 100,
-      reason: "Event Setup Assistance",
-      date: "2025-12-14",
-    },
-    {
-      id: 3,
-      member: "Bob Smith",
-      coins: 25,
-      reason: "Workshop Attendance",
-      date: "2025-12-12",
-    },
-    {
-      id: 4,
-      member: "Diana Prince",
-      coins: 75,
-      reason: "Outstanding Contribution",
-      date: "2025-12-10",
-    },
-  ];
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/event-organizer/volunteers");
+      const data = await res.json();
+      if (data.success) {
+        setMembers(data.availableMembers || []);
+
+        const awarded = data.volunteers
+          .filter((v) => v.coinsEarned > 0)
+          .map((v) => ({
+            id: v.id,
+            member: v.name,
+            coins: v.coinsEarned,
+            reason: v.role || "Volunteer Work",
+            date: v.event || "Campus Event",
+          }));
+        setRecentAwards(awarded);
+      }
+    } catch (err) {
+      console.error("Failed to load awards data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const awardPresets = [
     { label: "Event Participation", coins: 25, icon: "🎉" },
@@ -123,19 +81,52 @@ export default function AwardsTab() {
     );
   };
 
-  const handleAwardCoins = () => {
-    // In a real app, this would make an API call
-    // Award coins logic would go here
-    setIsAwardModalOpen(false);
-    setSelectedMembers([]);
-    setCoinsToAward(10);
-    setAwardReason("");
+  const handleAwardCoins = async () => {
+    if (selectedMembers.length === 0 || coinsToAward <= 0) {
+      alert(
+        "Please select at least one member and specify a valid amount of coins.",
+      );
+      return;
+    }
+    try {
+      const res = await fetch("/api/event-organizer/award-coins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberIds: selectedMembers,
+          coins: coinsToAward,
+          reason: awardReason,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsAwardModalOpen(false);
+        setSelectedMembers([]);
+        setCoinsToAward(10);
+        setAwardReason("");
+        loadData();
+      } else {
+        alert(data.error || "Failed to distribute coins");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while distributing coins");
+    }
   };
 
   const selectPreset = (preset) => {
     setCoinsToAward(preset.coins);
     setAwardReason(preset.label);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading members and awards...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

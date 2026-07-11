@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Calendar,
@@ -12,6 +12,7 @@ import {
   Eye,
   CheckCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -20,47 +21,8 @@ import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
 
 export default function EventsTab() {
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: "Annual Hackathon 2025",
-      description: "48-hour coding marathon with amazing prizes",
-      date: "2025-12-25",
-      time: "09:00 AM",
-      location: "Main Auditorium",
-      status: "upcoming",
-      registrations: 45,
-      maxParticipants: 100,
-      volunteers: [
-        { id: 1, name: "Alice Smith", role: "Registration" },
-        { id: 2, name: "Bob Johnson", role: "Tech Support" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Tech Talk: AI in 2025",
-      description: "Expert session on latest AI trends",
-      date: "2025-12-20",
-      time: "03:00 PM",
-      location: "Seminar Hall",
-      status: "upcoming",
-      registrations: 78,
-      maxParticipants: 150,
-      volunteers: [],
-    },
-    {
-      id: 3,
-      title: "Workshop: Web Development",
-      description: "Hands-on workshop for beginners",
-      date: "2025-12-10",
-      time: "10:00 AM",
-      location: "Computer Lab",
-      status: "completed",
-      registrations: 30,
-      maxParticipants: 30,
-      volunteers: [{ id: 3, name: "Charlie Brown", role: "Instructor" }],
-    },
-  ]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -75,28 +37,78 @@ export default function EventsTab() {
     maxParticipants: 50,
   });
 
-  const handleCreateEvent = () => {
-    const event = {
-      id: events.length + 1,
-      ...newEvent,
-      status: "upcoming",
-      registrations: 0,
-      volunteers: [],
-    };
-    setEvents([event, ...events]);
-    setIsCreateModalOpen(false);
-    setNewEvent({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      location: "",
-      maxParticipants: 50,
-    });
+  const loadEvents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/event-organizer/events");
+      const data = await res.json();
+      if (data.success) {
+        setEvents(data.events);
+      }
+    } catch (err) {
+      console.error("Failed to load events:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  const handleCreateEvent = async () => {
+    if (
+      !newEvent.title ||
+      !newEvent.date ||
+      !newEvent.time ||
+      !newEvent.location
+    ) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/event-organizer/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEvent),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsCreateModalOpen(false);
+        setNewEvent({
+          title: "",
+          description: "",
+          date: "",
+          time: "",
+          location: "",
+          maxParticipants: 50,
+        });
+        loadEvents();
+      } else {
+        alert(data.error || "Failed to create event");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while creating event");
+    }
   };
 
-  const handleDeleteEvent = (eventId) => {
-    setEvents(events.filter((e) => e.id !== eventId));
+  const handleDeleteEvent = async (eventId) => {
+    if (!confirm("Are you sure you want to cancel and delete this event?"))
+      return;
+    try {
+      const res = await fetch(`/api/event-organizer/events?id=${eventId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadEvents();
+      } else {
+        alert(data.error || "Failed to delete event");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while deleting event");
+    }
   };
 
   const registrations = [
@@ -143,6 +155,15 @@ export default function EventsTab() {
     { id: 3, name: "Charlie Brown", skills: ["Instruction", "Mentoring"] },
     { id: 4, name: "Diana Prince", skills: ["Photography", "Social Media"] },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading events...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
