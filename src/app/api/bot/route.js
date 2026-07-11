@@ -19,11 +19,6 @@ if (!token) {
 
 const bot = new Bot(token);
 
-// Register a global error handler to prevent webhook crashes
-bot.catch((err) => {
-  console.error("Telegram Bot Error:", err);
-});
-
 // ==========================================
 // Helper functions for modular bot commands
 // ==========================================
@@ -33,7 +28,6 @@ async function handleHelp(ctx) {
     `ℹ️ Available Bot Commands:\n\n` +
     `• /login <email> <password> : Pairs your Telegram account with your student portal by logging in. Example: /login alex@example.com mypassword123\n` +
     `• /classes : Fetches your dynamic class schedule and rescheduling overrides for the next 48 hours.\n` +
-    `• /classOn <day> : Fetches classes scheduled for a specific day. Example: /classOn Monday\n` +
     `• /news : Lists the latest three announcements and important circulars.\n` +
     `• /events : Shows upcoming club competitions, hackathons, and volunteer opportunities.\n` +
     `• Ask any question to chat with AI guide.`;
@@ -312,11 +306,7 @@ async function handleClasses(ctx, targetDayName = null) {
     });
 
     if (finalSchedules.length === 0) {
-      if (targetDayName) {
-        await ctx.reply(`📅 No classes scheduled for ${targetDayName}.`);
-      } else {
-        await ctx.reply("📅 No classes scheduled for today or tomorrow.");
-      }
+      await ctx.reply("📅 No classes scheduled for the selected day.");
       return;
     }
 
@@ -365,8 +355,7 @@ bot.command("start", async (ctx) => {
     `I can help you stay on top of your daily campus schedules and announcements.\n\n` +
     `Here are my commands:\n` +
     `👉 /login <email> <password> - Log in and link your portal account\n` +
-    `👉 /classes - View recent classes (today & tomorrow)\n` +
-    `👉 /classOn <day> - View classes on a specific day (e.g. /classOn Monday)\n` +
+    `👉 /classes - View your classes and timetables for today\n` +
     `👉 /news - Get the latest notices & announcements\n` +
     `👉 /events - Get upcoming campus events & details\n` +
     `👉 /help - Show available instructions\n\n` +
@@ -437,18 +426,9 @@ bot.command("events", async (ctx) => {
   await handleEvents(ctx);
 });
 
-// 6. /classes command (for recent classes today/tomorrow)
+// 6. /classes command
 bot.command("classes", async (ctx) => {
-  await handleClasses(ctx, null);
-});
-
-// 6b. /classOn command (for classes on a specific day)
-bot.command(["classon", "classOn"], async (ctx) => {
   const param = ctx.match ? ctx.match.trim() : null;
-  if (!param) {
-    await ctx.reply("❌ Please specify a day. Example: /classOn Monday");
-    return;
-  }
   await handleClasses(ctx, param);
 });
 
@@ -463,6 +443,7 @@ function cleanJson(text) {
   }
   return cleaned;
 }
+
 // 7. General natural language conversational query classifier
 bot.on("message:text", async (ctx) => {
   const query = ctx.message.text ? ctx.message.text.trim() : "";
@@ -484,7 +465,8 @@ bot.on("message:text", async (ctx) => {
       `JSON Schema:\n` +
       `{\n` +
       `  "command": "classes" | "news" | "events" | "help" | "none",\n` +
-      `  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" | "today" | "tomorrow" | null\n` +
+      `  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" | "today" | "tomorrow" | null,\n` +
+      `  "reply": "If the command is 'none', write a polite, concise AI response to answer the user's chit-chat or general question. If the command is NOT 'none', keep this field as an empty string."\n` +
       `}\n\n` +
       `Command Guidelines:\n` +
       `- "classes": User is asking for class schedules, timetables, or session cancellations/reschedules (e.g. "is there any class on monday", "do I have classes tomorrow", "show schedule").\n` +
@@ -494,9 +476,6 @@ bot.on("message:text", async (ctx) => {
       `- "none": Default for chit-chat, greetings, or other questions.\n\n` +
       `User Query: "${query}"\n` +
       `Return ONLY the JSON string. Do not include markdown formatting tags.`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`,
@@ -515,19 +494,8 @@ bot.on("message:text", async (ctx) => {
             responseMimeType: "application/json",
           },
         }),
-        signal: controller.signal,
       },
     );
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`Gemini API returned error ${response.status}:`, errText);
-      await ctx.reply(
-        "I received your query! How can I assist you with campus notices or classes?",
-      );
-      return;
-    }
 
     const data = await response.json();
     let replyText = "";
@@ -545,6 +513,8 @@ bot.on("message:text", async (ctx) => {
     let action = {
       command: "none",
       day: null,
+      reply:
+        "I received your query! How can I assist you with campus notices or classes?",
     };
 
     try {
@@ -569,49 +539,9 @@ bot.on("message:text", async (ctx) => {
     } else if (action.command === "help") {
       await handleHelp(ctx);
     } else {
-      // 2nd call: fetch chat response dynamically for general chit-chat queries
-      const chatPrompt =
-        "You are the official UniVerse Campus Connect virtual AI guide helper. " +
-        `Politely and concisely answer this query: "${query}"`;
-
-      try {
-        const chatController = new AbortController();
-        const chatTimeout = setTimeout(() => chatController.abort(), 6000);
-
-        const response2 = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: chatPrompt }] }],
-            }),
-            signal: chatController.signal,
-          },
-        );
-        clearTimeout(chatTimeout);
-
-        if (response2.ok) {
-          const data2 = await response2.json();
-          if (
-            data2.candidates &&
-            data2.candidates[0] &&
-            data2.candidates[0].content &&
-            data2.candidates[0].content.parts &&
-            data2.candidates[0].content.parts[0]
-          ) {
-            await ctx.reply(data2.candidates[0].content.parts[0].text);
-            return;
-          }
-        }
-      } catch (chatErr) {
-        console.error("Gemini chit-chat generator error:", chatErr);
-      }
-
       await ctx.reply(
-        "I received your query! How can I assist you with campus notices or classes?",
+        action.reply ||
+          "I received your query! How can I assist you with campus notices or classes?",
       );
     }
   } catch (err) {
@@ -622,34 +552,5 @@ bot.on("message:text", async (ctx) => {
   }
 });
 
-// Deduplication cache for Telegram Webhook updates to prevent parallel retries
-const processedUpdates = new Set();
-const handler = webhookCallback(bot, "std/http");
-
 // Webhook callback export
-export async function POST(req) {
-  try {
-    // Clone the request to prevent consuming the body prematurely
-    const clone = req.clone();
-    const update = await clone.json();
-
-    if (update && update.update_id) {
-      if (processedUpdates.has(update.update_id)) {
-        console.log(`Duplicate Telegram update ignored: ${update.update_id}`);
-        return new Response("OK", { status: 200 });
-      }
-      processedUpdates.add(update.update_id);
-
-      // Limit memory footprint of the Set cache
-      if (processedUpdates.size > 200) {
-        const firstVal = processedUpdates.values().next().value;
-        processedUpdates.delete(firstVal);
-      }
-    }
-
-    return await handler(req);
-  } catch (err) {
-    console.error("Telegram webhook handler error:", err);
-    return new Response("Error", { status: 500 });
-  }
-}
+export const POST = webhookCallback(bot, "std/http");
