@@ -37,6 +37,7 @@ const UserSchema = new mongoose.Schema(
     publications: { type: Number, default: 0 },
     maxLoad: { type: Number, default: 16 },
     coins: { type: Number, default: 0 },
+    telegramChatId: { type: String, default: null },
   },
   { timestamps: true },
 );
