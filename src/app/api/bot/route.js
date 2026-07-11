@@ -493,6 +493,9 @@ bot.on("message:text", async (ctx) => {
       `User Query: "${query}"\n` +
       `Return ONLY the JSON string. Do not include markdown formatting tags.`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`,
       {
@@ -510,8 +513,10 @@ bot.on("message:text", async (ctx) => {
             responseMimeType: "application/json",
           },
         }),
+        signal: controller.signal,
       },
     );
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errText = await response.text();
