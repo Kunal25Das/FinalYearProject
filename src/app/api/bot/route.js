@@ -19,24 +19,11 @@ if (!token) {
 
 const bot = new Bot(token);
 
-// 1. /start command
-bot.command("start", async (ctx) => {
-  const welcomeMessage =
-    `🎓 Welcome to UniVerse Campus Bot!\n\n` +
-    `I can help you stay on top of your daily campus schedules and announcements.\n\n` +
-    `Here are my commands:\n` +
-    `👉 /login <email> <password> - Log in and link your portal account\n` +
-    `👉 /classes - View your classes and timetables for today\n` +
-    `👉 /news - Get the latest notices & announcements\n` +
-    `👉 /events - Get upcoming campus events & details\n` +
-    `👉 /help - Show available instructions\n\n` +
-    `Or just chat with me! I'm powered by Google Gemini and can answer any questions you have.`;
+// ==========================================
+// Helper functions for modular bot commands
+// ==========================================
 
-  await ctx.reply(welcomeMessage);
-});
-
-// 2. /help command
-bot.command("help", async (ctx) => {
+async function handleHelp(ctx) {
   const helpText =
     `ℹ️ Available Bot Commands:\n\n` +
     `• /login <email> <password> : Pairs your Telegram account with your student portal by logging in. Example: /login alex@example.com mypassword123\n` +
@@ -45,57 +32,9 @@ bot.command("help", async (ctx) => {
     `• /events : Shows upcoming club competitions, hackathons, and volunteer opportunities.\n` +
     `• Ask any question to chat with AI guide.`;
   await ctx.reply(helpText);
-});
+}
 
-// 3. /login <email> <password> command
-bot.command("login", async (ctx) => {
-  const args = ctx.match ? ctx.match.trim().split(/\s+/) : [];
-  if (args.length < 2) {
-    await ctx.reply("❌ Invalid format. Use: /login <email> <password>");
-    return;
-  }
-  const email = args[0].toLowerCase().trim();
-  const password = args[1];
-
-  try {
-    await dbConnect();
-    const user = await User.findOne({ email });
-    if (!user) {
-      await ctx.reply(
-        "❌ No registered student profile found with that email address.",
-      );
-      return;
-    }
-
-    if (!user.password) {
-      await ctx.reply(
-        "❌ Password authentication is not supported for this account (e.g. Google OAuth sign-in).",
-      );
-      return;
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      await ctx.reply("❌ Incorrect password. Please try again.");
-      return;
-    }
-
-    user.telegramChatId = ctx.chat.id.toString();
-    await user.save();
-
-    await ctx.reply(
-      `✅ Login Successful!\n\n` +
-        `Welcome, ${user.name}! Your Telegram account has been linked to portal profile: ${user.email}.\n` +
-        `You can now use /classes to view your class schedules.`,
-    );
-  } catch (err) {
-    console.error("Login and link account error:", err);
-    await ctx.reply("❌ Failed to log in. Please try again later.");
-  }
-});
-
-// 4. /news command
-bot.command("news", async (ctx) => {
+async function handleNews(ctx) {
   try {
     await dbConnect();
     const notices = await Notice.find({ status: "active" })
@@ -122,10 +61,9 @@ bot.command("news", async (ctx) => {
     console.error("Fetch bot news error:", err);
     await ctx.reply("❌ Failed to load notices. Please try again later.");
   }
-});
+}
 
-// 5. /events command
-bot.command("events", async (ctx) => {
+async function handleEvents(ctx) {
   try {
     await dbConnect();
     const events = await ClubEvent.find({ status: "upcoming" })
@@ -146,17 +84,19 @@ bot.command("events", async (ctx) => {
       return `${idx + 1}. *${e.title}*\n📅 ${d} at ${e.time}\n📍 Location: ${e.location}`;
     });
 
-    await ctx.reply(`*Upcoming Campus Events:*\n\n${eventLines.join("\n\n")}`, {
-      parse_mode: "Markdown",
-    });
+    await ctx.reply(
+      `🎉 *Upcoming Campus Events:*\n\n${eventLines.join("\n\n")}`,
+      {
+        parse_mode: "Markdown",
+      },
+    );
   } catch (err) {
     console.error("Fetch bot events error:", err);
     await ctx.reply("❌ Failed to load events. Please try again later.");
   }
-});
+}
 
-// 6. /classes command
-bot.command("classes", async (ctx) => {
+async function handleClasses(ctx) {
   try {
     await dbConnect();
 
@@ -365,9 +305,108 @@ bot.command("classes", async (ctx) => {
       "❌ Failed to query class timetables. Please try again later.",
     );
   }
+}
+
+// ==========================================
+// GrammY Bot command listeners registrations
+// ==========================================
+
+// 1. /start command
+bot.command("start", async (ctx) => {
+  const welcomeMessage =
+    `🎓 Welcome to UniVerse Campus Bot!\n\n` +
+    `I can help you stay on top of your daily campus schedules and announcements.\n\n` +
+    `Here are my commands:\n` +
+    `👉 /login <email> <password> - Log in and link your portal account\n` +
+    `👉 /classes - View your classes and timetables for today\n` +
+    `👉 /news - Get the latest notices & announcements\n` +
+    `👉 /events - Get upcoming campus events & details\n` +
+    `👉 /help - Show available instructions\n\n` +
+    `Or just chat with me! I'm powered by Google Gemini and can answer any questions you have.`;
+
+  await ctx.reply(welcomeMessage);
 });
 
-// 7. General AI chat integration using Gemini standard API
+// 2. /help command
+bot.command("help", async (ctx) => {
+  await handleHelp(ctx);
+});
+
+// 3. /login <email> <password> command
+bot.command("login", async (ctx) => {
+  const args = ctx.match ? ctx.match.trim().split(/\s+/) : [];
+  if (args.length < 2) {
+    await ctx.reply("❌ Invalid format. Use: /login <email> <password>");
+    return;
+  }
+  const email = args[0].toLowerCase().trim();
+  const password = args[1];
+
+  try {
+    await dbConnect();
+    const user = await User.findOne({ email });
+    if (!user) {
+      await ctx.reply(
+        "❌ No registered student profile found with that email address.",
+      );
+      return;
+    }
+
+    if (!user.password) {
+      await ctx.reply(
+        "❌ Password authentication is not supported for this account (e.g. Google OAuth sign-in).",
+      );
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      await ctx.reply("❌ Incorrect password. Please try again.");
+      return;
+    }
+
+    user.telegramChatId = ctx.chat.id.toString();
+    await user.save();
+
+    await ctx.reply(
+      `✅ Login Successful!\n\n` +
+        `Welcome, ${user.name}! Your Telegram account has been linked to portal profile: ${user.email}.\n` +
+        `You can now use /classes to view your class schedules.`,
+    );
+  } catch (err) {
+    console.error("Login and link account error:", err);
+    await ctx.reply("❌ Failed to log in. Please try again later.");
+  }
+});
+
+// 4. /news command
+bot.command("news", async (ctx) => {
+  await handleNews(ctx);
+});
+
+// 5. /events command
+bot.command("events", async (ctx) => {
+  await handleEvents(ctx);
+});
+
+// 6. /classes command
+bot.command("classes", async (ctx) => {
+  await handleClasses(ctx);
+});
+
+// Clean markdown code blocks from JSON string
+function cleanJson(text) {
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned
+      .replace(/^```(json)?/, "")
+      .replace(/```$/, "")
+      .trim();
+  }
+  return cleaned;
+}
+
+// 7. General natural language conversational query classifier
 bot.on("message:text", async (ctx) => {
   const query = ctx.message.text ? ctx.message.text.trim() : "";
   if (!query || query.startsWith("/")) return;
@@ -383,9 +422,21 @@ bot.on("message:text", async (ctx) => {
       return;
     }
 
-    const systemContext =
-      "You are the official UniVerse Campus Connect virtual AI guide helper. " +
-      "Politely, briefly, and helpfully answer the campus user's question. Question: ";
+    const systemPrompt =
+      `Classify the following user query for a campus bot and return a valid JSON object.\n` +
+      `JSON Schema:\n` +
+      `{\n` +
+      `  "command": "classes" | "news" | "events" | "help" | "none",\n` +
+      `  "reply": "If the command is 'none', write a polite, concise AI response to answer the user's chit-chat or general question. If the command is NOT 'none', keep this field as an empty string."\n` +
+      `}\n\n` +
+      `Command Guidelines:\n` +
+      `- "classes": User is asking for class schedules, timetables, or session cancellations/reschedules (e.g. "is there any class on monday", "do I have classes tomorrow", "show schedule").\n` +
+      `- "news": User is asking for recent notices, circulars, or news updates (e.g. "any announcements?", "show me the notices").\n` +
+      `- "events": User is asking for upcoming campus events, club activities, or listings (e.g. "what events are coming up?", "tell me about events").\n` +
+      `- "help": User is asking for help, manual, or instructions on how to use the bot.\n` +
+      `- "none": Default for chit-chat, greetings, or other questions.\n\n` +
+      `User Query: "${query}"\n` +
+      `Return ONLY the JSON string. Do not include markdown formatting tags.`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
@@ -397,7 +448,7 @@ bot.on("message:text", async (ctx) => {
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: `${systemContext} "${query}"` }],
+              parts: [{ text: systemPrompt }],
             },
           ],
         }),
@@ -414,14 +465,44 @@ bot.on("message:text", async (ctx) => {
       data.candidates[0].content.parts[0]
     ) {
       replyText = data.candidates[0].content.parts[0].text;
-    } else {
-      replyText =
-        "I received your query! How can I assist you with campus notices or classes?";
     }
 
-    await ctx.reply(replyText);
+    // Clean and parse JSON response
+    let action = {
+      command: "none",
+      reply:
+        "I received your query! How can I assist you with campus notices or classes?",
+    };
+
+    try {
+      const cleaned = cleanJson(replyText);
+      action = JSON.parse(cleaned);
+    } catch (e) {
+      console.error(
+        "JSON parsing error for Gemini classification:",
+        e,
+        "Raw response:",
+        replyText,
+      );
+    }
+
+    // Route execution dynamically based on AI analysis
+    if (action.command === "classes") {
+      await handleClasses(ctx);
+    } else if (action.command === "news") {
+      await handleNews(ctx);
+    } else if (action.command === "events") {
+      await handleEvents(ctx);
+    } else if (action.command === "help") {
+      await handleHelp(ctx);
+    } else {
+      await ctx.reply(
+        action.reply ||
+          "I received your query! How can I assist you with campus notices or classes?",
+      );
+    }
   } catch (err) {
-    console.error("Gemini query error:", err);
+    console.error("Gemini classification query error:", err);
     await ctx.reply(
       "I received your query! How can I assist you with campus notices or classes?",
     );
