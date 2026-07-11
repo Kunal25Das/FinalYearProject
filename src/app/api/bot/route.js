@@ -508,6 +508,29 @@ bot.on("message:text", async (ctx) => {
           ],
           generationConfig: {
             responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                command: {
+                  type: "STRING",
+                  enum: [
+                    "classes",
+                    "classOn",
+                    "news",
+                    "events",
+                    "help",
+                    "none",
+                  ],
+                },
+                day: {
+                  type: "STRING",
+                },
+                reply: {
+                  type: "STRING",
+                },
+              },
+              required: ["command", "day", "reply"],
+            },
           },
         }),
       },
