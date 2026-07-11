@@ -19,6 +19,11 @@ if (!token) {
 
 const bot = new Bot(token);
 
+// Register a global error handler to prevent webhook crashes
+bot.catch((err) => {
+  console.error("Telegram Bot Error:", err);
+});
+
 // ==========================================
 // Helper functions for modular bot commands
 // ==========================================
@@ -28,6 +33,7 @@ async function handleHelp(ctx) {
     `ℹ️ Available Bot Commands:\n\n` +
     `• /login <email> <password> : Pairs your Telegram account with your student portal by logging in. Example: /login alex@example.com mypassword123\n` +
     `• /classes : Fetches your dynamic class schedule and rescheduling overrides for the next 48 hours.\n` +
+    `• /classOn <day> : Fetches classes scheduled for a specific day. Example: /classOn Monday\n` +
     `• /news : Lists the latest three announcements and important circulars.\n` +
     `• /events : Shows upcoming club competitions, hackathons, and volunteer opportunities.\n` +
     `• Ask any question to chat with AI guide.`;
@@ -355,7 +361,8 @@ bot.command("start", async (ctx) => {
     `I can help you stay on top of your daily campus schedules and announcements.\n\n` +
     `Here are my commands:\n` +
     `👉 /login <email> <password> - Log in and link your portal account\n` +
-    `👉 /classes - View your classes and timetables for today\n` +
+    `👉 /classes - View recent classes (today & tomorrow)\n` +
+    `👉 /classOn <day> - View classes on a specific day (e.g. /classOn Monday)\n` +
     `👉 /news - Get the latest notices & announcements\n` +
     `👉 /events - Get upcoming campus events & details\n` +
     `👉 /help - Show available instructions\n\n` +
@@ -426,9 +433,18 @@ bot.command("events", async (ctx) => {
   await handleEvents(ctx);
 });
 
-// 6. /classes command
+// 6. /classes command (for recent classes today/tomorrow)
 bot.command("classes", async (ctx) => {
+  await handleClasses(ctx, null);
+});
+
+// 6b. /classOn command (for classes on a specific day)
+bot.command(["classon", "classOn"], async (ctx) => {
   const param = ctx.match ? ctx.match.trim() : null;
+  if (!param) {
+    await ctx.reply("❌ Please specify a day. Example: /classOn Monday");
+    return;
+  }
   await handleClasses(ctx, param);
 });
 
@@ -497,6 +513,15 @@ bot.on("message:text", async (ctx) => {
       },
     );
 
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`Gemini API returned error ${response.status}:`, errText);
+      await ctx.reply(
+        "I received your query! How can I assist you with campus notices or classes?",
+      );
+      return;
+    }
+
     const data = await response.json();
     let replyText = "";
     if (
@@ -552,5 +577,34 @@ bot.on("message:text", async (ctx) => {
   }
 });
 
+// Deduplication cache for Telegram Webhook updates to prevent parallel retries
+const processedUpdates = new Set();
+const handler = webhookCallback(bot, "std/http");
+
 // Webhook callback export
-export const POST = webhookCallback(bot, "std/http");
+export async function POST(req) {
+  try {
+    // Clone the request to prevent consuming the body prematurely
+    const clone = req.clone();
+    const update = await clone.json();
+
+    if (update && update.update_id) {
+      if (processedUpdates.has(update.update_id)) {
+        console.log(`Duplicate Telegram update ignored: ${update.update_id}`);
+        return new Response("OK", { status: 200 });
+      }
+      processedUpdates.add(update.update_id);
+
+      // Limit memory footprint of the Set cache
+      if (processedUpdates.size > 200) {
+        const firstVal = processedUpdates.values().next().value;
+        processedUpdates.delete(firstVal);
+      }
+    }
+
+    return await handler(req);
+  } catch (err) {
+    console.error("Telegram webhook handler error:", err);
+    return new Response("Error", { status: 500 });
+  }
+}
