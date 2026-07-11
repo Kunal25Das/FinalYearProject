@@ -20,7 +20,7 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
 
-export default function EventsTab() {
+export default function EventsTab({ userRole }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -176,10 +176,12 @@ export default function EventsTab() {
             Create and manage club events
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Event
-        </Button>
+        {userRole !== "club-advisor" && (
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Event
+          </Button>
+        )}
       </div>
 
       {/* Events Grid */}
@@ -212,15 +214,19 @@ export default function EventsTab() {
                   >
                     <Eye className="w-4 h-4" />
                   </button>
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-blue-500 transition-colors">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
-                    onClick={() => handleDeleteEvent(event.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {userRole !== "club-advisor" && (
+                    <>
+                      <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-blue-500 transition-colors">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -483,9 +489,14 @@ export default function EventsTab() {
                           </p>
                         </div>
                       </div>
-                      <Button variant="ghost" className="text-red-500 text-sm!">
-                        Remove
-                      </Button>
+                      {userRole !== "club-advisor" && (
+                        <Button
+                          variant="ghost"
+                          className="text-red-500 text-sm!"
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -497,43 +508,45 @@ export default function EventsTab() {
             </div>
 
             {/* Add Volunteers */}
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white mb-3">
-                Add Volunteers
-              </h3>
-              <div className="space-y-2">
-                {availableVolunteers.map((vol) => (
-                  <div
-                    key={vol.id}
-                    className="flex items-center justify-between p-3 bg-gray-100 dark:bg-white/5 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-500">
-                        {vol.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {vol.name}
-                        </p>
-                        <div className="flex gap-1 mt-1">
-                          {vol.skills.map((skill, i) => (
-                            <span
-                              key={i}
-                              className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-white/10 rounded text-gray-600 dark:text-gray-400"
-                            >
-                              {skill}
-                            </span>
-                          ))}
+            {userRole !== "club-advisor" && (
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3">
+                  Add Volunteers
+                </h3>
+                <div className="space-y-2">
+                  {availableVolunteers.map((vol) => (
+                    <div
+                      key={vol.id}
+                      className="flex items-center justify-between p-3 bg-gray-100 dark:bg-white/5 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-500">
+                          {vol.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {vol.name}
+                          </p>
+                          <div className="flex gap-1 mt-1">
+                            {vol.skills.map((skill, i) => (
+                              <span
+                                key={i}
+                                className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-white/10 rounded text-gray-600 dark:text-gray-400"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
+                      <Button variant="outline" className="text-sm!">
+                        Assign Role
+                      </Button>
                     </div>
-                    <Button variant="outline" className="text-sm!">
-                      Assign Role
-                    </Button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </Modal>

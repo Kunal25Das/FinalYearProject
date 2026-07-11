@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import {
   Users,
   Calendar,
@@ -8,20 +9,87 @@ import {
   Bell,
   Plus,
   Coins,
+  Loader2,
+  Check,
+  X,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
 
-export default function ClubHomeTab({ setActiveTab, clubData }) {
-  const club = clubData || {
+export default function ClubHomeTab({ setActiveTab }) {
+  const [club, setClub] = useState({
     name: "Computer Science Club",
-    icon: "🖥️",
-    members: 234,
-    pendingRequests: 5,
-    totalCoinsAwarded: 1250,
-    upcomingEvents: 3,
-    activeVolunteers: 12,
+    icon: "💡",
+    color: "from-blue-600 to-purple-600",
+    members: 0,
+    pendingRequests: 0,
+    totalCoinsAwarded: 0,
+    upcomingEvents: 0,
+    activeVolunteers: 0,
+  });
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await fetch("/api/club/stats");
+      const data = await res.json();
+      if (data.success) {
+        setClub(data.club);
+        setPendingRequests(data.pendingRequests);
+        setRecentActivities(data.recentActivities);
+      }
+    } catch (err) {
+      console.error("Failed to load club stats:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      const res = await fetch("/api/club/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId: requestId, action: "approve" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadStats();
+      } else {
+        alert(data.error || "Failed to accept membership request");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error approving request");
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    if (!confirm("Are you sure you want to reject this membership request?"))
+      return;
+    try {
+      const res = await fetch("/api/club/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId: requestId, action: "reject" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadStats();
+      } else {
+        alert(data.error || "Failed to reject membership request");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error rejecting request");
+    }
   };
 
   const quickStats = [
@@ -55,32 +123,14 @@ export default function ClubHomeTab({ setActiveTab, clubData }) {
     },
   ];
 
-  const recentActivities = [
-    {
-      id: 1,
-      text: "New member joined: John Doe",
-      time: "2 hours ago",
-      type: "member",
-    },
-    {
-      id: 2,
-      text: "Event 'Hackathon 2025' registration opened",
-      time: "5 hours ago",
-      type: "event",
-    },
-    {
-      id: 3,
-      text: "50 coins awarded to volunteer team",
-      time: "1 day ago",
-      type: "coins",
-    },
-    {
-      id: 4,
-      text: "New notice posted: Exam Break Schedule",
-      time: "2 days ago",
-      type: "notice",
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading club details...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -144,34 +194,47 @@ export default function ClubHomeTab({ setActiveTab, clubData }) {
             </span>
           </div>
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
+            {pendingRequests.map((req) => (
               <div
-                key={i}
+                key={req.id}
                 className="flex items-center justify-between p-3 bg-gray-100 dark:bg-white/5 rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center">
-                    👤
+                  <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-lg font-bold">
+                    {req.avatar}
                   </div>
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      Student {i}
+                      {req.name}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Requested 2 days ago
+                      Requested {req.requestedAt}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="primary" className="py-1! px-3! text-sm!">
-                    Accept
+                  <Button
+                    variant="primary"
+                    className="py-1! px-3! text-sm! flex items-center gap-1"
+                    onClick={() => handleAcceptRequest(req.id)}
+                  >
+                    <Check className="w-3 h-3" /> Accept
                   </Button>
-                  <Button variant="ghost" className="py-1! px-3! text-sm!">
-                    Reject
+                  <Button
+                    variant="ghost"
+                    className="py-1! px-3! text-sm! flex items-center gap-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                    onClick={() => handleRejectRequest(req.id)}
+                  >
+                    <X className="w-3 h-3" /> Reject
                   </Button>
                 </div>
               </div>
             ))}
+            {pendingRequests.length === 0 && (
+              <p className="text-sm text-gray-500 italic py-4 text-center">
+                No pending membership requests.
+              </p>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -213,6 +276,11 @@ export default function ClubHomeTab({ setActiveTab, clubData }) {
                 </div>
               </div>
             ))}
+            {recentActivities.length === 0 && (
+              <p className="text-sm text-gray-500 italic py-4 text-center">
+                No recent activity recorded.
+              </p>
+            )}
           </div>
         </Card>
       </div>

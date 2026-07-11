@@ -204,23 +204,23 @@ export default function DashboardPage() {
 
     switch (activeTab) {
       case "club-home":
-        return <ClubHomeTab setActiveTab={setActiveTab} />;
+        return <ClubHomeTab setActiveTab={setActiveTab} userRole={userRole} />;
       case "events":
-        return <EventsTab />;
+        return <EventsTab userRole={userRole} />;
       case "members":
-        return <MembersTab />;
+        return <MembersTab userRole={userRole} />;
       case "notices":
-        return <NoticesTab />;
+        return <NoticesTab userRole={userRole} />;
       case "awards":
-        return <AwardsTab />;
+        return <AwardsTab userRole={userRole} />;
       case "create-club":
         return <CreateClubTab onClubCreated={() => setHasClub(true)} />;
       case "profile":
         return <ProfileTab />;
       case "settings":
-        return <ClubSettingsTab />;
+        return <ClubSettingsTab userRole={userRole} />;
       default:
-        return <ClubHomeTab setActiveTab={setActiveTab} />;
+        return <ClubHomeTab setActiveTab={setActiveTab} userRole={userRole} />;
     }
   };
 

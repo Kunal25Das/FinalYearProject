@@ -19,6 +19,10 @@ const ClubSchema = new mongoose.Schema(
       enum: ["active", "disbanded"],
       default: "active",
     },
+    category: { type: String, default: "Technology" },
+    icon: { type: String, default: "💡" },
+    color: { type: String, default: "from-blue-600 to-purple-600" },
+    achievements: [{ type: String }],
     institute: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Institute",

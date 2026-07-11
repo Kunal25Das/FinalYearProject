@@ -17,7 +17,7 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
 
-export default function AwardsTab() {
+export default function AwardsTab({ userRole }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAwardModalOpen, setIsAwardModalOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -139,10 +139,12 @@ export default function AwardsTab() {
             Reward members for their contributions
           </p>
         </div>
-        <Button onClick={() => setIsAwardModalOpen(true)}>
-          <Coins className="w-4 h-4 mr-2" />
-          Award Coins
-        </Button>
+        {userRole !== "club-advisor" && (
+          <Button onClick={() => setIsAwardModalOpen(true)}>
+            <Coins className="w-4 h-4 mr-2" />
+            Award Coins
+          </Button>
+        )}
       </div>
 
       {/* Stats */}

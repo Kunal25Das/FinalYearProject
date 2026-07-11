@@ -22,6 +22,16 @@ const NoticeSchema = new mongoose.Schema(
     expiresAt: { type: Date },
     author: { type: String, default: "Administration" },
     status: { type: String, enum: ["active", "archived"], default: "active" },
+    club: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Club",
+      default: null,
+    },
+    type: {
+      type: String,
+      enum: ["urgent", "info", "update", "event"],
+      default: "info",
+    },
     institute: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Institute",

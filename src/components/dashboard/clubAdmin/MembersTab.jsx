@@ -1,93 +1,50 @@
 "use client";
 
-import { useState } from "react";
-import { Users, Search, Shield, Crown, UserX, Coins } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Users,
+  Search,
+  Shield,
+  Crown,
+  UserX,
+  Coins,
+  Loader2,
+} from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
 
-export default function MembersTab() {
+export default function MembersTab({ userRole }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAwardModalOpen, setIsAwardModalOpen] = useState(false);
   const [coinsToAward, setCoinsToAward] = useState(10);
 
-  const [members, setMembers] = useState([
-    {
-      id: 1,
-      name: "Alice Johnson",
-      email: "alice@example.com",
-      role: "Event Organizer",
-      joinedAt: "2024-09-15",
-      coinsEarned: 150,
-      avatar: "👩‍💻",
-    },
-    {
-      id: 2,
-      name: "Bob Smith",
-      email: "bob@example.com",
-      role: "Member",
-      joinedAt: "2024-10-01",
-      coinsEarned: 50,
-      avatar: "👨‍🎓",
-    },
-    {
-      id: 3,
-      name: "Charlie Brown",
-      email: "charlie@example.com",
-      role: "Volunteer",
-      joinedAt: "2024-11-10",
-      coinsEarned: 75,
-      avatar: "🧑‍💼",
-    },
-    {
-      id: 4,
-      name: "Diana Prince",
-      email: "diana@example.com",
-      role: "Event Organizer",
-      joinedAt: "2024-08-20",
-      coinsEarned: 200,
-      avatar: "👩‍🔬",
-    },
-    {
-      id: 5,
-      name: "Eve Wilson",
-      email: "eve@example.com",
-      role: "Member",
-      joinedAt: "2025-01-05",
-      coinsEarned: 25,
-      avatar: "👩‍🎨",
-    },
-    {
-      id: 6,
-      name: "Frank Miller",
-      email: "frank@example.com",
-      role: "Volunteer",
-      joinedAt: "2024-12-01",
-      coinsEarned: 100,
-      avatar: "👨‍🔧",
-    },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
 
-  const [pendingRequests, setPendingRequests] = useState([
-    {
-      id: 7,
-      name: "Grace Lee",
-      email: "grace@example.com",
-      requestedAt: "2025-12-14",
-      avatar: "👩‍🏫",
-    },
-    {
-      id: 8,
-      name: "Henry Ford",
-      email: "henry@example.com",
-      requestedAt: "2025-12-15",
-      avatar: "👨‍💼",
-    },
-  ]);
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/club/members");
+      const data = await res.json();
+      if (data.success) {
+        setMembers(data.members || []);
+        setPendingRequests(data.pendingRequests || []);
+      }
+    } catch (err) {
+      console.error("Failed to load club members:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const roles = [
     {
@@ -116,56 +73,137 @@ export default function MembersTab() {
       member.email.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const handleAcceptRequest = (requestId) => {
-    const request = pendingRequests.find((r) => r.id === requestId);
-    if (request) {
-      setMembers([
-        ...members,
-        {
-          ...request,
-          role: "Member",
-          joinedAt: new Date().toISOString().split("T")[0],
-          coinsEarned: 0,
-        },
-      ]);
-      setPendingRequests(pendingRequests.filter((r) => r.id !== requestId));
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      const res = await fetch("/api/club/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId: requestId, action: "approve" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadData();
+      } else {
+        alert(data.error || "Failed to accept request");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error approving request");
     }
   };
 
-  const handleRejectRequest = (requestId) => {
-    setPendingRequests(pendingRequests.filter((r) => r.id !== requestId));
+  const handleRejectRequest = async (requestId) => {
+    if (!confirm("Are you sure you want to reject this request?")) return;
+    try {
+      const res = await fetch("/api/club/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipId: requestId, action: "reject" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadData();
+      } else {
+        alert(data.error || "Failed to reject request");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error rejecting request");
+    }
   };
 
-  const handleRemoveMember = (memberId) => {
-    setMembers(members.filter((m) => m.id !== memberId));
+  const handleRemoveMember = async (memberId) => {
+    if (!confirm("Are you sure you want to remove this member from the club?"))
+      return;
+    try {
+      const res = await fetch(`/api/club/members?id=${memberId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMembers(members.filter((m) => m.id !== memberId));
+      } else {
+        alert(data.error || "Failed to remove member");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error removing member");
+    }
   };
 
-  const handleAssignRole = (role) => {
+  const handleAssignRole = async (roleObj) => {
     if (selectedMember) {
-      setMembers(
-        members.map((m) =>
-          m.id === selectedMember.id ? { ...m, role: role.label } : m,
-        ),
-      );
-      setIsRoleModalOpen(false);
-      setSelectedMember(null);
+      try {
+        const res = await fetch("/api/club/members", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            membershipId: selectedMember.id,
+            action: "change-role",
+            role: roleObj.label,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setMembers(
+            members.map((m) =>
+              m.id === selectedMember.id ? { ...m, role: roleObj.label } : m,
+            ),
+          );
+          setIsRoleModalOpen(false);
+          setSelectedMember(null);
+        } else {
+          alert(data.error || "Failed to update role");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error assigning role");
+      }
     }
   };
 
-  const handleAwardCoins = () => {
+  const handleAwardCoins = async () => {
     if (selectedMember && coinsToAward > 0) {
-      setMembers(
-        members.map((m) =>
-          m.id === selectedMember.id
-            ? { ...m, coinsEarned: m.coinsEarned + coinsToAward }
-            : m,
-        ),
-      );
-      setIsAwardModalOpen(false);
-      setSelectedMember(null);
-      setCoinsToAward(10);
+      try {
+        const res = await fetch("/api/event-organizer/award-coins", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            memberIds: [selectedMember.userId],
+            coins: coinsToAward,
+            reason: "Awarded by Club Admin",
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setMembers(
+            members.map((m) =>
+              m.id === selectedMember.id
+                ? { ...m, coinsEarned: m.coinsEarned + coinsToAward }
+                : m,
+            ),
+          );
+          setIsAwardModalOpen(false);
+          setSelectedMember(null);
+          setCoinsToAward(10);
+        } else {
+          alert(data.error || "Failed to award coins");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error awarding coins");
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading members...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -195,7 +233,7 @@ export default function MembersTab() {
       {pendingRequests.length > 0 && (
         <Card>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <span className="px-2 py-1 bg-orange-500/20 text-orange-500 rounded-full text-sm">
+            <span className="px-2 py-1 bg-orange-500/20 text-orange-500 rounded-full text-sm font-medium">
               {pendingRequests.length}
             </span>
             Pending Join Requests
@@ -209,7 +247,7 @@ export default function MembersTab() {
                 className="flex items-center justify-between p-4 bg-gray-100 dark:bg-white/5 rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-violet-500/20 flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 rounded-full bg-violet-500/20 flex items-center justify-center text-2xl font-bold">
                     {request.avatar}
                   </div>
                   <div>
@@ -218,12 +256,15 @@ export default function MembersTab() {
                     </p>
                     <p className="text-sm text-gray-500">{request.email}</p>
                     <p className="text-xs text-gray-400">
-                      Requested on {request.requestedAt}
+                      Requested {request.requestedAt}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleAcceptRequest(request.id)}>
+                  <Button
+                    variant="primary"
+                    onClick={() => handleAcceptRequest(request.id)}
+                  >
                     Accept
                   </Button>
                   <Button
@@ -239,177 +280,103 @@ export default function MembersTab() {
         </Card>
       )}
 
-      {/* Members Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Total Members
-          </p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {members.length}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Event Organizers
-          </p>
-          <p className="text-3xl font-bold text-purple-500">
-            {members.filter((m) => m.role === "Event Organizer").length}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Volunteers</p>
-          <p className="text-3xl font-bold text-blue-500">
-            {members.filter((m) => m.role === "Volunteer").length}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Total Coins Awarded
-          </p>
-          <p className="text-3xl font-bold text-yellow-500">
-            {members.reduce((sum, m) => sum + m.coinsEarned, 0)}
-          </p>
-        </Card>
+      {/* Members Directory */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredMembers.map((member) => (
+          <Card key={member.id} hover className="flex flex-col h-full">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-linear-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                  {member.avatar}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white">
+                    {member.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {member.email}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Joined {member.joinedAt}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-200 dark:border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-full text-xs font-semibold">
+                  {member.role}
+                </span>
+                <span className="text-xs text-yellow-500 font-semibold flex items-center gap-1">
+                  <Coins className="w-3.5 h-3.5" /> {member.coinsEarned}
+                </span>
+              </div>
+
+              {userRole !== "club-advisor" && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    className="p-2! min-w-0"
+                    title="Award Coins"
+                    onClick={() => {
+                      setSelectedMember(member);
+                      setIsAwardModalOpen(true);
+                    }}
+                  >
+                    <Coins className="w-4 h-4 text-yellow-500" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="p-2! min-w-0"
+                    title="Change Role"
+                    onClick={() => {
+                      setSelectedMember(member);
+                      setIsRoleModalOpen(true);
+                    }}
+                  >
+                    <Crown className="w-4 h-4 text-violet-500 dark:text-violet-400" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="p-2! min-w-0 border-red-500/20! hover:bg-red-500/10! text-red-500!"
+                    title="Remove Member"
+                    onClick={() => handleRemoveMember(member.id)}
+                  >
+                    <UserX className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Members List */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-white/10">
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Member
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Role
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Joined
-                </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Coins Earned
-                </th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMembers.map((member, index) => (
-                <motion.tr
-                  key={member.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5"
-                >
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center text-xl">
-                        {member.avatar}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {member.name}
-                        </p>
-                        <p className="text-xs text-gray-500">{member.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        member.role === "Event Organizer"
-                          ? "bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400"
-                          : member.role === "Volunteer"
-                            ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                            : "bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400"
-                      }`}
-                    >
-                      {member.role}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-gray-600 dark:text-gray-400">
-                    {member.joinedAt}
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="flex items-center gap-1 text-yellow-500 font-medium">
-                      <Coins className="w-4 h-4" />
-                      {member.coinsEarned}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        className="text-sm! py-1! px-2!"
-                        onClick={() => {
-                          setSelectedMember(member);
-                          setIsAwardModalOpen(true);
-                        }}
-                      >
-                        <Coins className="w-4 h-4 mr-1" />
-                        Award
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="text-sm! py-1! px-2!"
-                        onClick={() => {
-                          setSelectedMember(member);
-                          setIsRoleModalOpen(true);
-                        }}
-                      >
-                        <Shield className="w-4 h-4 mr-1" />
-                        Role
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="text-sm! py-1! px-2! text-red-500!"
-                        onClick={() => handleRemoveMember(member.id)}
-                      >
-                        <UserX className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Assign Role Modal */}
+      {/* Role Assignment Modal */}
       <Modal
         isOpen={isRoleModalOpen}
-        onClose={() => {
-          setIsRoleModalOpen(false);
-          setSelectedMember(null);
-        }}
+        onClose={() => setIsRoleModalOpen(false)}
         title={`Assign Role - ${selectedMember?.name}`}
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
           {roles.map((role) => {
             const Icon = role.icon;
             return (
               <button
                 key={role.id}
+                className="w-full flex items-start gap-4 p-4 rounded-xl border border-gray-200 dark:border-white/10 hover:border-violet-500 hover:bg-violet-500/5 transition-all text-left"
                 onClick={() => handleAssignRole(role)}
-                className={`w-full flex items-center gap-4 p-4 rounded-lg border transition-all ${
-                  selectedMember?.role === role.label
-                    ? "border-violet-500 bg-violet-500/10"
-                    : "border-gray-200 dark:border-white/10 hover:border-violet-500/50 hover:bg-gray-50 dark:hover:bg-white/5"
-                }`}
               >
-                <div className="w-12 h-12 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                  <Icon className="w-6 h-6 text-violet-500" />
+                <div className="p-2 rounded-lg bg-violet-500/20 text-violet-500 dark:text-violet-400">
+                  <Icon className="w-6 h-6" />
                 </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900 dark:text-white">
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white">
                     {role.label}
+                  </h4>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {role.description}
                   </p>
-                  <p className="text-sm text-gray-500">{role.description}</p>
                 </div>
               </button>
             );
@@ -420,55 +387,22 @@ export default function MembersTab() {
       {/* Award Coins Modal */}
       <Modal
         isOpen={isAwardModalOpen}
-        onClose={() => {
-          setIsAwardModalOpen(false);
-          setSelectedMember(null);
-        }}
+        onClose={() => setIsAwardModalOpen(false)}
         title={`Award Coins - ${selectedMember?.name}`}
       >
-        <div className="space-y-6">
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
-              <Coins className="w-10 h-10 text-yellow-500" />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Current balance:{" "}
-              <span className="font-bold text-yellow-500">
-                {selectedMember?.coinsEarned} coins
-              </span>
-            </p>
-          </div>
-
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-              Coins to Award
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Number of Coins
             </label>
-            <div className="flex gap-2">
-              {[10, 25, 50, 100].map((amount) => (
-                <button
-                  key={amount}
-                  onClick={() => setCoinsToAward(amount)}
-                  className={`flex-1 py-2 rounded-lg border transition-all ${
-                    coinsToAward === amount
-                      ? "border-yellow-500 bg-yellow-500/20 text-yellow-500"
-                      : "border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:border-yellow-500/50"
-                  }`}
-                >
-                  {amount}
-                </button>
-              ))}
-            </div>
+            <Input
+              type="number"
+              value={coinsToAward}
+              onChange={(e) => setCoinsToAward(parseInt(e.target.value) || 0)}
+              min="1"
+            />
           </div>
-
-          <Input
-            label="Custom Amount"
-            type="number"
-            value={coinsToAward}
-            onChange={(e) => setCoinsToAward(parseInt(e.target.value) || 0)}
-            min={1}
-          />
-
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-4">
             <Button
               variant="ghost"
               className="flex-1"
@@ -477,7 +411,7 @@ export default function MembersTab() {
               Cancel
             </Button>
             <Button className="flex-1" onClick={handleAwardCoins}>
-              Award {coinsToAward} Coins
+              Award Coins
             </Button>
           </div>
         </div>

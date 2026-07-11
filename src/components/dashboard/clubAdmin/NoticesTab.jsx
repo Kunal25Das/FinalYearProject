@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Bell,
   Plus,
@@ -10,6 +10,7 @@ import {
   Info,
   Calendar,
   Pin,
+  Loader2,
 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -17,36 +18,9 @@ import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import { motion } from "framer-motion";
 
-export default function NoticesTab() {
-  const [notices, setNotices] = useState([
-    {
-      id: 1,
-      title: "Hackathon Registration Deadline",
-      content:
-        "Last date to register for the Annual Hackathon 2025 is December 23rd. Don't miss out on this amazing opportunity!",
-      type: "urgent",
-      createdAt: "2025-12-15",
-      pinned: true,
-    },
-    {
-      id: 2,
-      title: "Club Meeting Schedule",
-      content:
-        "Weekly meetings will be held every Friday at 5 PM in Room 301. All members are encouraged to attend.",
-      type: "info",
-      createdAt: "2025-12-14",
-      pinned: false,
-    },
-    {
-      id: 3,
-      title: "Workshop Materials Available",
-      content:
-        "The materials from our recent Web Development workshop are now available. Check the resources section for download links.",
-      type: "update",
-      createdAt: "2025-12-10",
-      pinned: false,
-    },
-  ]);
+export default function NoticesTab({ userRole }) {
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState(null);
@@ -64,34 +38,109 @@ export default function NoticesTab() {
     { id: "event", label: "Event", color: "purple", icon: Calendar },
   ];
 
-  const handleCreateNotice = () => {
-    const notice = {
-      id: notices.length + 1,
-      ...newNotice,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setNotices([notice, ...notices]);
-    setIsCreateModalOpen(false);
-    setNewNotice({ title: "", content: "", type: "info", pinned: false });
+  const loadNotices = useCallback(async () => {
+    try {
+      const res = await fetch("/api/club/notices");
+      const data = await res.json();
+      if (data.success) {
+        setNotices(data.notices || []);
+      }
+    } catch (err) {
+      console.error("Failed to load club notices:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotices();
+  }, [loadNotices]);
+
+  const handleCreateNotice = async () => {
+    if (!newNotice.title || !newNotice.content) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/club/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newNotice),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsCreateModalOpen(false);
+        setNewNotice({ title: "", content: "", type: "info", pinned: false });
+        loadNotices();
+      } else {
+        alert(data.error || "Failed to create notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while creating notice");
+    }
   };
 
-  const handleUpdateNotice = () => {
-    setNotices(
-      notices.map((n) =>
-        n.id === editingNotice.id ? { ...editingNotice } : n,
-      ),
-    );
-    setEditingNotice(null);
+  const handleUpdateNotice = async () => {
+    try {
+      const res = await fetch("/api/club/notices", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          noticeId: editingNotice.id,
+          title: editingNotice.title,
+          content: editingNotice.content,
+          type: editingNotice.type,
+          pinned: editingNotice.pinned,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingNotice(null);
+        loadNotices();
+      } else {
+        alert(data.error || "Failed to update notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while updating notice");
+    }
   };
 
-  const handleDeleteNotice = (noticeId) => {
-    setNotices(notices.filter((n) => n.id !== noticeId));
+  const handleDeleteNotice = async (noticeId) => {
+    if (!confirm("Are you sure you want to delete this notice?")) return;
+    try {
+      const res = await fetch(`/api/club/notices?id=${noticeId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadNotices();
+      } else {
+        alert(data.error || "Failed to delete notice");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred while deleting notice");
+    }
   };
 
-  const togglePin = (noticeId) => {
-    setNotices(
-      notices.map((n) => (n.id === noticeId ? { ...n, pinned: !n.pinned } : n)),
-    );
+  const togglePin = async (noticeId, currentPinned) => {
+    try {
+      const res = await fetch("/api/club/notices", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noticeId, pinned: !currentPinned }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadNotices();
+      } else {
+        alert(data.error || "Failed to toggle pin state");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const getTypeConfig = (type) => {
@@ -104,6 +153,15 @@ export default function NoticesTab() {
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading notices...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -115,10 +173,12 @@ export default function NoticesTab() {
             Create and manage club announcements
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Post Notice
-        </Button>
+        {userRole !== "club-advisor" && (
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Post Notice
+          </Button>
+        )}
       </div>
 
       {/* Notice Stats */}
@@ -130,9 +190,17 @@ export default function NoticesTab() {
             <Card key={type.id} hover>
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-lg bg-${type.color}-500/20 flex items-center justify-center`}
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    type.id === "urgent"
+                      ? "bg-red-500/20 text-red-500"
+                      : type.id === "info"
+                        ? "bg-blue-500/20 text-blue-500"
+                        : type.id === "update"
+                          ? "bg-green-500/20 text-green-500"
+                          : "bg-purple-500/20 text-purple-500"
+                  }`}
                 >
-                  <Icon className={`w-5 h-5 text-${type.color}-500`} />
+                  <Icon className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -161,10 +229,10 @@ export default function NoticesTab() {
               transition={{ delay: index * 0.1 }}
             >
               <Card
-                className={`relative ${notice.pinned ? "border-2 border-violet-500/50" : ""}`}
+                className={`relative ${notice.pinned ? "border-2 border-purple-500/50" : ""}`}
               >
                 {notice.pinned && (
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-violet-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
                     <Pin className="w-4 h-4 text-white" />
                   </div>
                 )}
@@ -174,25 +242,15 @@ export default function NoticesTab() {
                     <div
                       className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
                         notice.type === "urgent"
-                          ? "bg-red-500/20"
+                          ? "bg-red-500/20 text-red-500"
                           : notice.type === "info"
-                            ? "bg-blue-500/20"
+                            ? "bg-blue-500/20 text-blue-500"
                             : notice.type === "update"
-                              ? "bg-green-500/20"
-                              : "bg-purple-500/20"
+                              ? "bg-green-500/20 text-green-500"
+                              : "bg-purple-500/20 text-purple-500"
                       }`}
                     >
-                      <Icon
-                        className={`w-6 h-6 ${
-                          notice.type === "urgent"
-                            ? "text-red-500"
-                            : notice.type === "info"
-                              ? "text-blue-500"
-                              : notice.type === "update"
-                                ? "text-green-500"
-                                : "text-purple-500"
-                        }`}
-                      />
+                      <Icon className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -222,30 +280,32 @@ export default function NoticesTab() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 ml-4">
-                    <button
-                      onClick={() => togglePin(notice.id)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        notice.pinned
-                          ? "bg-violet-500/20 text-violet-500"
-                          : "hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500"
-                      }`}
-                    >
-                      <Pin className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setEditingNotice(notice)}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-blue-500 transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteNotice(notice.id)}
-                      className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {userRole !== "club-advisor" && (
+                    <div className="flex items-center gap-1 ml-4">
+                      <button
+                        onClick={() => togglePin(notice.id, notice.pinned)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          notice.pinned
+                            ? "bg-purple-500/20 text-purple-500"
+                            : "hover:bg-gray-100 dark:hover:bg-white/10 text-gray-500"
+                        }`}
+                      >
+                        <Pin className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setEditingNotice(notice)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-blue-500 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteNotice(notice.id)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </Card>
             </motion.div>
@@ -260,12 +320,16 @@ export default function NoticesTab() {
             No notices yet
           </h3>
           <p className="text-gray-500 mb-4">
-            Create your first notice to inform club members
+            {userRole === "club-advisor"
+              ? "Stay tuned for upcoming announcements from club representatives."
+              : "Create your first notice to inform club members"}
           </p>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Post Notice
-          </Button>
+          {userRole !== "club-advisor" && (
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Post Notice
+            </Button>
+          )}
         </Card>
       )}
 
@@ -290,7 +354,7 @@ export default function NoticesTab() {
               Content
             </label>
             <textarea
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
               rows={4}
               placeholder="Notice content"
               value={newNotice.content}
@@ -315,11 +379,21 @@ export default function NoticesTab() {
                     }
                     className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
                       newNotice.type === type.id
-                        ? "border-violet-500 bg-violet-500/10"
-                        : "border-gray-200 dark:border-white/10 hover:border-violet-500/50"
+                        ? "border-purple-500 bg-purple-500/10"
+                        : "border-gray-200 dark:border-white/10 hover:border-purple-500/50"
                     }`}
                   >
-                    <Icon className={`w-4 h-4 text-${type.color}-500`} />
+                    <Icon
+                      className={`w-4 h-4 ${
+                        type.id === "urgent"
+                          ? "text-red-500"
+                          : type.id === "info"
+                            ? "text-blue-500"
+                            : type.id === "update"
+                              ? "text-green-500"
+                              : "text-purple-500"
+                      }`}
+                    />
                     <span className="text-gray-900 dark:text-white text-sm">
                       {type.label}
                     </span>
@@ -336,7 +410,7 @@ export default function NoticesTab() {
               onChange={(e) =>
                 setNewNotice({ ...newNotice, pinned: e.target.checked })
               }
-              className="w-5 h-5 rounded border-gray-300 text-violet-500 focus:ring-violet-500"
+              className="w-5 h-5 rounded border-gray-300 text-purple-500 focus:ring-purple-500"
             />
             <span className="text-gray-900 dark:text-white">
               Pin this notice
@@ -380,7 +454,7 @@ export default function NoticesTab() {
                 Content
               </label>
               <textarea
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                 rows={4}
                 placeholder="Notice content"
                 value={editingNotice.content}
@@ -408,11 +482,21 @@ export default function NoticesTab() {
                       }
                       className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
                         editingNotice.type === type.id
-                          ? "border-violet-500 bg-violet-500/10"
-                          : "border-gray-200 dark:border-white/10 hover:border-violet-500/50"
+                          ? "border-purple-500 bg-purple-500/10"
+                          : "border-gray-200 dark:border-white/10 hover:border-purple-500/50"
                       }`}
                     >
-                      <Icon className={`w-4 h-4 text-${type.color}-500`} />
+                      <Icon
+                        className={`w-4 h-4 ${
+                          type.id === "urgent"
+                            ? "text-red-500"
+                            : type.id === "info"
+                              ? "text-blue-500"
+                              : type.id === "update"
+                                ? "text-green-500"
+                                : "text-purple-500"
+                        }`}
+                      />
                       <span className="text-gray-900 dark:text-white text-sm">
                         {type.label}
                       </span>

@@ -1,38 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { Users, Calendar, Award, Search, Filter } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Users, Calendar, Award, Search, Filter, Loader2 } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { motion } from "framer-motion";
-import { clubs } from "@/lib/mockData";
 
 export default function CommunityTab() {
   const [selectedClub, setSelectedClub] = useState(null);
-
-  // Lazy initialization to avoid setState in useEffect
-  const [joinedClubs, setJoinedClubs] = useState(() => {
-    const savedClubs = localStorage.getItem("joinedClubs");
-    if (savedClubs) {
-      return JSON.parse(savedClubs);
-    }
-    // Default joined clubs if none saved
-    return [1, 3];
-  });
-
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleJoinToggle = (clubId) => {
-    let newJoinedClubs;
-    if (joinedClubs.includes(clubId)) {
-      newJoinedClubs = joinedClubs.filter((id) => id !== clubId);
-    } else {
-      newJoinedClubs = [...joinedClubs, clubId];
+  const [clubs, setClubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingClubId, setProcessingClubId] = useState(null);
+
+  const loadClubs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/student/clubs");
+      const data = await res.json();
+      if (data.success) {
+        setClubs(data.clubs || []);
+
+        // Keep selectedClub in sync if open
+        if (selectedClub) {
+          const updated = data.clubs.find((c) => c.id === selectedClub.id);
+          if (updated) {
+            setSelectedClub(updated);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load clubs list:", err);
+    } finally {
+      setLoading(false);
     }
-    setJoinedClubs(newJoinedClubs);
-    localStorage.setItem("joinedClubs", JSON.stringify(newJoinedClubs));
+  }, [selectedClub]);
+
+  useEffect(() => {
+    loadClubs();
+  }, [loadClubs]);
+
+  const handleJoinToggle = async (clubId, membershipStatus) => {
+    setProcessingClubId(clubId);
+    const isJoinedOrPending =
+      membershipStatus === "approved" || membershipStatus === "pending";
+    const action = isJoinedOrPending ? "leave" : "join";
+
+    try {
+      const res = await fetch("/api/student/clubs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clubId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Trigger reload
+        await loadClubs();
+      } else {
+        alert(data.error || "Failed to process request");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error occurred. Please try again.");
+    } finally {
+      setProcessingClubId(null);
+    }
   };
 
   const filteredClubs = clubs.filter(
@@ -40,6 +74,15 @@ export default function CommunityTab() {
       club.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       club.category.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mr-2" />
+        <span className="text-gray-500">Loading campus clubs...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -84,7 +127,7 @@ export default function CommunityTab() {
                 className={`h-24 rounded-t-xl bg-linear-to-r ${club.color} -mx-6 -mt-6 mb-4 relative overflow-visible`}
               >
                 <div className="absolute inset-0 bg-black/20" />
-                <div className="absolute -bottom-6 left-6 w-16 h-16 rounded-xl bg-[#0a0a0a] border-4 border-[#0a0a0a] flex items-center justify-center text-3xl shadow-lg z-10">
+                <div className="absolute -bottom-6 left-6 w-16 h-16 rounded-xl bg-gray-200 dark:bg-[#0a0a0a] border-4 border-gray-200 dark:border-[#0a0a0a] flex items-center justify-center text-3xl shadow-lg z-10">
                   {club.icon}
                 </div>
               </div>
@@ -99,7 +142,7 @@ export default function CommunityTab() {
                   </span>
                 </div>
 
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2 font-light">
                   {club.description}
                 </p>
 
@@ -119,14 +162,26 @@ export default function CommunityTab() {
                 <Button
                   className="flex-1"
                   variant={
-                    joinedClubs.includes(club.id) ? "outline" : "primary"
+                    club.membershipStatus === "approved" ||
+                    club.membershipStatus === "pending"
+                      ? "outline"
+                      : "primary"
                   }
+                  disabled={processingClubId === club.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleJoinToggle(club.id);
+                    handleJoinToggle(club.id, club.membershipStatus);
                   }}
                 >
-                  {joinedClubs.includes(club.id) ? "Joined" : "Join Club"}
+                  {processingClubId === club.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin mx-auto text-purple-600" />
+                  ) : club.membershipStatus === "approved" ? (
+                    "Joined"
+                  ) : club.membershipStatus === "pending" ? (
+                    "Pending Approval"
+                  ) : (
+                    "Join Club"
+                  )}
                 </Button>
               </div>
             </Card>
@@ -155,34 +210,37 @@ export default function CommunityTab() {
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                     About
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-light">
                     {selectedClub.description}
                   </p>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
-                    Achievements
-                  </h3>
-                  <div className="space-y-2">
-                    {selectedClub.achievements.map((achievement, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/5"
-                      >
-                        <Award className="w-5 h-5 text-yellow-500" />
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {achievement}
-                        </span>
+                {selectedClub.achievements &&
+                  selectedClub.achievements.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+                        Achievements
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedClub.achievements.map((achievement, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/5"
+                          >
+                            <Award className="w-5 h-5 text-yellow-500" />
+                            <span className="text-gray-700 dark:text-gray-300 text-sm">
+                              {achievement}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  )}
               </div>
 
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 space-y-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600 dark:text-gray-400">
                       Members
                     </span>
@@ -190,7 +248,7 @@ export default function CommunityTab() {
                       {selectedClub.members}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600 dark:text-gray-400">
                       Events
                     </span>
@@ -201,35 +259,54 @@ export default function CommunityTab() {
                   <Button
                     className="w-full"
                     variant={
-                      joinedClubs.includes(selectedClub.id)
+                      selectedClub.membershipStatus === "approved" ||
+                      selectedClub.membershipStatus === "pending"
                         ? "outline"
                         : "primary"
                     }
-                    onClick={() => handleJoinToggle(selectedClub.id)}
+                    disabled={processingClubId === selectedClub.id}
+                    onClick={() =>
+                      handleJoinToggle(
+                        selectedClub.id,
+                        selectedClub.membershipStatus,
+                      )
+                    }
                   >
-                    {joinedClubs.includes(selectedClub.id)
-                      ? "Leave Club"
-                      : "Join Now"}
+                    {processingClubId === selectedClub.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto text-purple-600" />
+                    ) : selectedClub.membershipStatus === "approved" ? (
+                      "Leave Club"
+                    ) : selectedClub.membershipStatus === "pending" ? (
+                      "Cancel Join Request"
+                    ) : (
+                      "Join Now"
+                    )}
                   </Button>
                 </div>
 
-                {selectedClub.upcomingEvents.length > 0 && (
-                  <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-3">
-                      Upcoming Events
-                    </h4>
-                    <div className="space-y-3">
-                      {selectedClub.upcomingEvents.map((event) => (
-                        <div key={event.id} className="text-sm">
-                          <p className="text-gray-900 dark:text-white font-medium">
-                            {event.name}
-                          </p>
-                          <p className="text-gray-500">{event.date}</p>
-                        </div>
-                      ))}
+                {selectedClub.upcomingEvents &&
+                  selectedClub.upcomingEvents.length > 0 && (
+                    <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                      <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-sm">
+                        Upcoming Events
+                      </h4>
+                      <div className="space-y-3">
+                        {selectedClub.upcomingEvents.map((event) => (
+                          <div
+                            key={event.id}
+                            className="text-sm border-b border-gray-200 dark:border-white/5 pb-2 last:border-0 last:pb-0"
+                          >
+                            <p className="text-gray-900 dark:text-white font-medium">
+                              {event.name}
+                            </p>
+                            <p className="text-gray-500 text-xs mt-0.5">
+                              {event.date}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             </div>
           </div>
