@@ -28,6 +28,7 @@ async function handleHelp(ctx) {
     `ℹ️ Available Bot Commands:\n\n` +
     `• /login <email> <password> : Pairs your Telegram account with your student portal by logging in. Example: /login alex@example.com mypassword123\n` +
     `• /classes : Fetches your dynamic class schedule and rescheduling overrides for the next 48 hours.\n` +
+    `• /classOn <day> : Fetches classes scheduled for a specific day. Example: /classOn Monday\n` +
     `• /news : Lists the latest three announcements and important circulars.\n` +
     `• /events : Shows upcoming club competitions, hackathons, and volunteer opportunities.\n` +
     `• Ask any question to chat with AI guide.`;
@@ -306,7 +307,11 @@ async function handleClasses(ctx, targetDayName = null) {
     });
 
     if (finalSchedules.length === 0) {
-      await ctx.reply("📅 No classes scheduled for the selected day.");
+      if (targetDayName) {
+        await ctx.reply(`📅 No classes scheduled for ${targetDayName}.`);
+      } else {
+        await ctx.reply("📅 No classes scheduled for today or tomorrow.");
+      }
       return;
     }
 
@@ -355,7 +360,8 @@ bot.command("start", async (ctx) => {
     `I can help you stay on top of your daily campus schedules and announcements.\n\n` +
     `Here are my commands:\n` +
     `👉 /login <email> <password> - Log in and link your portal account\n` +
-    `👉 /classes - View your classes and timetables for today\n` +
+    `👉 /classes - View recent classes (today & tomorrow)\n` +
+    `👉 /classOn <day> - View classes on a specific day (e.g. /classOn Monday)\n` +
     `👉 /news - Get the latest notices & announcements\n` +
     `👉 /events - Get upcoming campus events & details\n` +
     `👉 /help - Show available instructions\n\n` +
@@ -428,7 +434,16 @@ bot.command("events", async (ctx) => {
 
 // 6. /classes command
 bot.command("classes", async (ctx) => {
+  await handleClasses(ctx, null);
+});
+
+// 6b. /classOn command
+bot.command(["classon", "classOn"], async (ctx) => {
   const param = ctx.match ? ctx.match.trim() : null;
+  if (!param) {
+    await ctx.reply("❌ Please specify a day. Example: /classOn Monday");
+    return;
+  }
   await handleClasses(ctx, param);
 });
 
@@ -464,12 +479,13 @@ bot.on("message:text", async (ctx) => {
       `Classify the following user query for a campus bot and return a valid JSON object.\n` +
       `JSON Schema:\n` +
       `{\n` +
-      `  "command": "classes" | "news" | "events" | "help" | "none",\n` +
+      `  "command": "classes" | "classOn" | "news" | "events" | "help" | "none",\n` +
       `  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" | "today" | "tomorrow" | null,\n` +
       `  "reply": "If the command is 'none', write a polite, concise AI response to answer the user's chit-chat or general question. If the command is NOT 'none', keep this field as an empty string."\n` +
       `}\n\n` +
       `Command Guidelines:\n` +
-      `- "classes": User is asking for class schedules, timetables, or session cancellations/reschedules (e.g. "is there any class on monday", "do I have classes tomorrow", "show schedule").\n` +
+      `- "classes": User is asking for recent schedules or today/tomorrow classes generally (e.g. "do I have classes today", "show schedule", "what classes do I have tomorrow").\n` +
+      `- "classOn": User is asking for classes on a specific day of the week (e.g. "is there any class on monday", "do I have classes on tuesday").\n` +
       `- "news": User is asking for recent notices, circulars, or news updates (e.g. "any announcements?", "show me the notices").\n` +
       `- "events": User is asking for upcoming campus events, club activities, or listings (e.g. "what events are coming up?", "tell me about events").\n` +
       `- "help": User is asking for help, manual, or instructions on how to use the bot.\n` +
@@ -531,6 +547,8 @@ bot.on("message:text", async (ctx) => {
 
     // Route execution dynamically based on AI analysis
     if (action.command === "classes") {
+      await handleClasses(ctx, null);
+    } else if (action.command === "classOn" || action.command === "classon") {
       await handleClasses(ctx, action.day);
     } else if (action.command === "news") {
       await handleNews(ctx);
