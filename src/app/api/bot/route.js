@@ -96,7 +96,7 @@ async function handleEvents(ctx) {
   }
 }
 
-async function handleClasses(ctx) {
+async function handleClasses(ctx, targetDayName = null) {
   try {
     await dbConnect();
 
@@ -153,9 +153,49 @@ async function handleClasses(ctx) {
       if (f.name) facultyMap[f.name.toLowerCase().trim()] = f.name;
     });
 
-    // Generate schedules for next 2 days (Today & Tomorrow)
-    const schedulesList = [];
+    // Resolve target dates
+    let targetDates = [];
     const today = new Date();
+    const weekdays = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+
+    if (targetDayName) {
+      const normalizedDay = targetDayName.toLowerCase().trim();
+      if (normalizedDay === "today") {
+        targetDates = [today];
+      } else if (normalizedDay === "tomorrow") {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        targetDates = [tomorrow];
+      } else if (weekdays.includes(normalizedDay)) {
+        const targetIdx = weekdays.indexOf(normalizedDay);
+        // Find the next occurrence of this weekday in the next 7 days (including today)
+        for (let i = 0; i < 7; i++) {
+          const checkDate = new Date(today);
+          checkDate.setDate(today.getDate() + i);
+          if (checkDate.getDay() === targetIdx) {
+            targetDates.push(checkDate);
+            break;
+          }
+        }
+      }
+    }
+
+    // Default to Today + Tomorrow if no valid targetDate is found
+    if (targetDates.length === 0) {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      targetDates = [today, tomorrow];
+    }
+
+    const schedulesList = [];
     const daysOfWeek = [
       "Sunday",
       "Monday",
@@ -166,10 +206,7 @@ async function handleClasses(ctx) {
       "Saturday",
     ];
 
-    for (let i = 0; i < 2; i++) {
-      const currentDate = new Date(today);
-      currentDate.setDate(today.getDate() + i);
-
+    targetDates.forEach((currentDate) => {
       const dayName = daysOfWeek[currentDate.getDay()];
       const dateString = currentDate.toLocaleDateString("en-US", {
         month: "short",
@@ -202,7 +239,7 @@ async function handleClasses(ctx) {
           }
         });
       });
-    }
+    });
 
     // Load overrides
     const overrides = await ScheduleOverride.find({
@@ -269,7 +306,7 @@ async function handleClasses(ctx) {
     });
 
     if (finalSchedules.length === 0) {
-      await ctx.reply("📅 No classes scheduled for today or tomorrow.");
+      await ctx.reply("📅 No classes scheduled for the selected day.");
       return;
     }
 
@@ -391,7 +428,8 @@ bot.command("events", async (ctx) => {
 
 // 6. /classes command
 bot.command("classes", async (ctx) => {
-  await handleClasses(ctx);
+  const param = ctx.match ? ctx.match.trim() : null;
+  await handleClasses(ctx, param);
 });
 
 // Clean markdown code blocks from JSON string
@@ -427,6 +465,7 @@ bot.on("message:text", async (ctx) => {
       `JSON Schema:\n` +
       `{\n` +
       `  "command": "classes" | "news" | "events" | "help" | "none",\n` +
+      `  "day": "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday" | "today" | "tomorrow" | null,\n` +
       `  "reply": "If the command is 'none', write a polite, concise AI response to answer the user's chit-chat or general question. If the command is NOT 'none', keep this field as an empty string."\n` +
       `}\n\n` +
       `Command Guidelines:\n` +
@@ -451,6 +490,9 @@ bot.on("message:text", async (ctx) => {
               parts: [{ text: systemPrompt }],
             },
           ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
         }),
       },
     );
@@ -470,6 +512,7 @@ bot.on("message:text", async (ctx) => {
     // Clean and parse JSON response
     let action = {
       command: "none",
+      day: null,
       reply:
         "I received your query! How can I assist you with campus notices or classes?",
     };
@@ -488,7 +531,7 @@ bot.on("message:text", async (ctx) => {
 
     // Route execution dynamically based on AI analysis
     if (action.command === "classes") {
-      await handleClasses(ctx);
+      await handleClasses(ctx, action.day);
     } else if (action.command === "news") {
       await handleNews(ctx);
     } else if (action.command === "events") {
